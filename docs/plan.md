@@ -7,7 +7,7 @@
 - [x] **Phase 1: proof of concept.** Commit `08a133f`. Tested on the emulator (API 36) and a Pixel 8 (Android 17): show, Continue, Exit, screen off, and service disable all work.
 - [x] **Phase 2: core logic and tests.** 42 unit tests pass. Tested on the emulator: pause, choice, Continue, Exit, cooldown, switching mid-pause, unlock and reduced motion. Also tested on the Pixel 8, including swiping home during a pause.
 - [x] **Phase 3: app UI and persistence.** 52 unit tests pass. Tested on the emulator: onboarding, settings, app list and search, exclusions, settings reaching the service live, and pausing on return from Yoniso. Tested on the Pixel 8 with A Dance of Fire and Ice, opened from the home screen and from the app drawer: every pause ran its full length.
-- [ ] **Phase 4: testing and polish.** In progress. Emulator tests, the call fix, polish and the Play disclosure review are committed. The new onboarding consent flow was tested on the Pixel 8. The Pixel tests for calls, PIN lock, rapid switching, dark mode and reboot are still to do.
+- [x] **Phase 4: testing and polish.** Commit `3221b11`. Tested on the emulator: rapid switching, lock/unlock, service restart, revocation mid-pause and incoming calls. The call fix came from that testing. Tested on the Pixel 8: onboarding consent, a real incoming call during a pause, PIN lock/unlock, rapid switching, dark mode, and a cooldown surviving a reboot. Remaining before Play distribution: see the README, "Before publishing on Google Play".
 
 ## Project setup (done)
 
