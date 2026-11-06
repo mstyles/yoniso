@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
+import app.yoniso.BuildConfig
 import app.yoniso.MainActivity
 import app.yoniso.core.Clock
 import app.yoniso.core.PauseAction
@@ -65,7 +66,7 @@ class YonisoAccessibilityService : AccessibilityService() {
         // binds). Tear down the previous connection first so no overlay, receiver or settings
         // observer is left behind.
         if (scope != null) {
-            Log.d(TAG, "Reconnected without unbind; cleaning up the previous connection")
+            debugLog { "Reconnected without unbind; cleaning up the previous connection" }
             cleanUp()
         }
         overlay = OverlayController(this)
@@ -80,7 +81,7 @@ class YonisoAccessibilityService : AccessibilityService() {
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         receiverRegistered = true
-        Log.d(TAG, "Service connected; ignoring $ignored")
+        debugLog { "Service connected; ignoring $ignored" }
     }
 
     /** Creates the machine from the first stored settings, then feeds it every change. */
@@ -96,9 +97,9 @@ class YonisoAccessibilityService : AccessibilityService() {
             .collect { settings ->
                 if (machine == null) {
                     machine = PauseMachine(settings, ignored, savedCooldowns, Clock { System.currentTimeMillis() })
-                    Log.d(TAG, "Machine ready: $settings")
+                    debugLog { "Machine ready: $settings" }
                 } else {
-                    Log.d(TAG, "Settings changed: $settings")
+                    debugLog { "Settings changed: $settings" }
                     dispatch(PauseEvent.SettingsChanged(settings))
                 }
             }
@@ -117,7 +118,7 @@ class YonisoAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: Intent?): Boolean {
-        Log.d(TAG, "Service unbound")
+        debugLog { "Service unbound" }
         cleanUp()
         return super.onUnbind(intent)
     }
@@ -136,7 +137,7 @@ class YonisoAccessibilityService : AccessibilityService() {
             while (pendingEvents.isNotEmpty()) {
                 val next = pendingEvents.removeFirst()
                 val actions = machine.handle(next)
-                if (actions.isNotEmpty()) Log.d(TAG, "$next -> $actions (${machine.state})")
+                if (actions.isNotEmpty()) debugLog { "$next -> $actions (${machine.state})" }
                 actions.forEach(::perform)
             }
         } finally {
@@ -188,6 +189,11 @@ class YonisoAccessibilityService : AccessibilityService() {
             .orEmpty()
         // Yoniso's own package is filtered in onAccessibilityEvent instead, and is never pausable.
         return setOf(SYSTEM_UI_PACKAGE) + imePackages
+    }
+
+    /** Debug builds only: release builds never log which apps were opened. */
+    private inline fun debugLog(message: () -> String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message())
     }
 
     private companion object {
