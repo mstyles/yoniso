@@ -6,7 +6,7 @@ An Android app that adds a short breathing pause before selected apps open. See 
 
 ## Build and run
 
-Requirements: JDK 17+, an Android SDK with the `platforms;android-37.2` platform installed (to compile; the app targets API 36), and a device or emulator running Android 8.0 (API 26) or newer.
+Requirements: JDK 17+, an Android SDK with the `platforms;android-37.2` platform installed (to compile; the app targets API 37), and a device or emulator running Android 8.0 (API 26) or newer.
 
 ```sh
 ./gradlew installDebug
@@ -45,7 +45,7 @@ Yoniso is not an accessibility tool, so it must not set `isAccessibilityTool`. P
 - **Play Console Accessibility API declaration (to do):** the reason for use, and a video showing the disclosure, accepting, declining (and the disclosure reappearing), and a pause.
 - **Privacy policy (done):** [PRIVACY.md](PRIVACY.md), published at https://github.com/mstyles/yoniso/blob/main/PRIVACY.md and linked from the bottom of the settings screen. Put the same URL in the Play Console.
 - **Data safety form (to do):** keep it consistent with the declaration. Check whether on-device-only processing of foreground-app data counts as "collected".
-- **targetSdk:** currently 36. Raise it to meet Play's target API deadline when publishing, and retest.
+- **targetSdk (done):** 37 (Android 17). Play currently requires 36 or higher. Android 17's background-audio hardening blocks audio focus and volume changes from background apps. Tested on a Pixel 8 (Android 17) targeting 37: while the pause shows, focus is granted and media is muted, then both are released, with no `AudioHardening` entries for Yoniso. Watch for this if the overlay or audio code changes.
 
 Sources: Play Console Help on [AccessibilityService API use](https://support.google.com/googleplay/android-developer/answer/10964491), [best practices for prominent disclosure](https://support.google.com/googleplay/android-developer/answer/11150561) and the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311).
 

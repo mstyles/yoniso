@@ -11,7 +11,7 @@
 
 ## Project setup (done)
 
-- Single `app` module, package `app.yoniso`. minSdk 26, targetSdk 36, compileSdk 37.2 (current AndroidX libraries need 37).
+- Single `app` module, package `app.yoniso`. minSdk 26, targetSdk 37 (raised from 36 after Phase 4), compileSdk 37.2 (current AndroidX libraries need 37).
 - AGP 9.5.1 (built-in Kotlin, no `kotlin-android` plugin), Kotlin 2.4.21 Compose plugin, Gradle 9.9 wrapper, version catalog in `gradle/libs.versions.toml`.
 - Dependencies are limited to Compose, DataStore (to be added in Phase 3) and JUnit. No `INTERNET` permission.
 - Package layout:
@@ -126,4 +126,4 @@ Polish:
 - `dataExtractionRules` exclude everything from cloud backup and device transfer.
 - Play disclosure review (see the README, "Before publishing on Google Play"). The onboarding and settings buttons now read "Agree and open settings", an explicit consent step, and the settings card's disclosure now covers what is accessed, how it is used, and that nothing is shared.
 
-55 unit tests pass. Lint: only `OldTargetApi` (targetSdk 36) remains.
+55 unit tests pass. Lint is clean since targetSdk was raised to 37. That build was tested on the Pixel 8: the pause's audio focus and media mute still work under Android 17's background-audio hardening.

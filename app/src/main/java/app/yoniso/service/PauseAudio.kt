@@ -40,6 +40,8 @@ internal class PauseAudio(context: Context) {
     fun acquire() {
         if (!focusHeld) {
             focusHeld = audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            // Android 17 refuses focus to apps it considers in the background.
+            if (!focusHeld) Log.w(TAG, "Audio focus was not granted")
         }
         // Already muted (by the user, or by us): leave it alone, so we never unmute what we didn't mute.
         if (!audioManager.isStreamMute(AudioManager.STREAM_MUSIC)) {
