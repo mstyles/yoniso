@@ -42,12 +42,16 @@ adb logcat -s Yoniso
 Yoniso is not an accessibility tool, so it must not set `isAccessibilityTool`. Play's AccessibilityService policy then requires:
 
 - **In-app prominent disclosure and consent (done):** shown in the onboarding, and again on the settings screen while access is off. It says what is accessed, how it is used, and that nothing is shared, then asks for an explicit "Agree and open settings". "Not now" declines. Leaving the screen is never treated as consent. The service's description string does not count as the disclosure.
-- **Play Console Accessibility API declaration (to do):** the reason for use, and a video showing the disclosure, accepting, declining (and the disclosure reappearing), and a pause.
+- **Play Console Accessibility API declaration (to do in the Console):** the reason for use is app functionality. Answer **No** to collecting or sharing personal and sensitive data through accessibility. A captioned video showing the disclosure, declining (the disclosure reappears), agreeing, and pauses with Continue and Exit has been recorded on the emulator. It is not in the repo. Upload it as an unlisted YouTube video or a Drive link.
 - **Privacy policy (done):** [PRIVACY.md](PRIVACY.md), published at https://github.com/mstyles/yoniso/blob/main/PRIVACY.md and linked from the bottom of the settings screen. Put the same URL in the Play Console.
-- **Data safety form (to do):** keep it consistent with the declaration. Check whether on-device-only processing of foreground-app data counts as "collected".
+- **Data safety form (to do in the Console):** Play counts data as collected only if it is "transmitted off a user's device", and Yoniso processes everything on the device.
+  - "Does your app collect or share any of the required user data types?" **No.** The encryption and deletion questions are then skipped.
+  - Data types: none, not even "Installed apps" or "App interactions" (on-device only). The listing should then show "No data collected" and "No data shared with third parties".
+  - Target audience: not children, so the Families policy doesn't apply.
+  - Revisit this form, the declaration and PRIVACY.md if Yoniso ever gains the `INTERNET` permission, an analytics or crash-reporting SDK, or a cloud backup of its data.
 - **targetSdk (done):** 37 (Android 17). Play currently requires 36 or higher. Android 17's background-audio hardening blocks audio focus and volume changes from background apps. Tested on a Pixel 8 (Android 17) targeting 37: while the pause shows, focus is granted and media is muted, then both are released, with no `AudioHardening` entries for Yoniso. Watch for this if the overlay or audio code changes.
 
-Sources: Play Console Help on [AccessibilityService API use](https://support.google.com/googleplay/android-developer/answer/10964491), [best practices for prominent disclosure](https://support.google.com/googleplay/android-developer/answer/11150561) and the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311).
+Sources: Play Console Help on [AccessibilityService API use](https://support.google.com/googleplay/android-developer/answer/10964491), [best practices for prominent disclosure](https://support.google.com/googleplay/android-developer/answer/11150561), the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311), and [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469).
 
 ## License
 
