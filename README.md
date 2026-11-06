@@ -48,3 +48,7 @@ Yoniso is not an accessibility tool, so it must not set `isAccessibilityTool`. P
 - **targetSdk:** currently 36. Raise it to meet Play's target API deadline when publishing, and retest.
 
 Sources: Play Console Help on [AccessibilityService API use](https://support.google.com/googleplay/android-developer/answer/10964491), [best practices for prominent disclosure](https://support.google.com/googleplay/android-developer/answer/11150561) and the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311).
+
+## License
+
+[MIT](LICENSE)
