@@ -25,9 +25,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
@@ -36,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import app.yoniso.core.CooldownDuration
 import app.yoniso.core.PauseDuration
 import app.yoniso.core.PauseSettings
+
+/** The published privacy policy (PRIVACY.md in the repository). Opened in the browser. */
+private const val PRIVACY_POLICY_URL = "https://github.com/mstyles/yoniso/blob/main/PRIVACY.md"
 
 /** The main screen (PRD FR-5). */
 @Composable
@@ -117,6 +122,16 @@ fun SettingsScreen(
                     onSelect = onCooldownDurationChange,
                 )
             }
+
+            HorizontalDivider()
+
+            val uriHandler = LocalUriHandler.current
+            TextButton(
+                onClick = {
+                    // Throws if no browser is installed; there is nothing more useful to do then.
+                    runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) }
+                },
+            ) { Text("Privacy policy") }
         }
     }
 }

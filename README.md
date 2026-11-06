@@ -43,7 +43,7 @@ Yoniso is not an accessibility tool, so it must not set `isAccessibilityTool`. P
 
 - **In-app prominent disclosure and consent (done):** shown in the onboarding, and again on the settings screen while access is off. It says what is accessed, how it is used, and that nothing is shared, then asks for an explicit "Agree and open settings". "Not now" declines. Leaving the screen is never treated as consent. The service's description string does not count as the disclosure.
 - **Play Console Accessibility API declaration (to do):** the reason for use, and a video showing the disclosure, accepting, declining (and the disclosure reappearing), and a pause.
-- **Privacy policy (drafted):** [PRIVACY.md](PRIVACY.md). Publish it at a public URL, and put that link in the Play Console and in the app (e.g. on the settings screen).
+- **Privacy policy (done):** [PRIVACY.md](PRIVACY.md), published at https://github.com/mstyles/yoniso/blob/main/PRIVACY.md and linked from the bottom of the settings screen. Put the same URL in the Play Console.
 - **Data safety form (to do):** keep it consistent with the declaration. Check whether on-device-only processing of foreground-app data counts as "collected".
 - **targetSdk:** currently 36. Raise it to meet Play's target API deadline when publishing, and retest.
 
