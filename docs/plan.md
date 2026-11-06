@@ -5,7 +5,7 @@
 ## Status
 
 - [x] **Phase 1: proof of concept.** Commit `08a133f`. Tested on the emulator (API 36) and a Pixel 8 (Android 17): show, Continue, Exit, screen off, and service disable all work.
-- [ ] Phase 2: core logic and tests
+- [x] **Phase 2: core logic and tests.** 42 unit tests pass. Tested on the emulator: pause, choice, Continue, Exit, cooldown, switching mid-pause, unlock and reduced motion. Also tested on the Pixel 8, including swiping home during a pause.
 - [ ] Phase 3: app UI and persistence
 - [ ] Phase 4: testing and polish
 
@@ -31,7 +31,7 @@
 - The target is hardcoded as `TARGET_PACKAGE = "com.android.chrome"` in `YonisoAccessibilityService`, and the pause is a hardcoded 5s countdown in `PauseOverlay`.
 - Known behaviour: on screen off, `foregroundPackage` is reset, so unlocking back into the target app pauses again. The Phase 2 cooldown suppresses this.
 
-## Phase 2: core logic and tests (next)
+## Phase 2: core logic and tests
 
 1. **State machine** in `core/`: `IDLE → PAUSING → AWAITING_CHOICE → DISMISSING → IDLE`.
    - Inputs: foreground changed(pkg), timer finished, Continue, Exit, screen off, service stopped.
@@ -60,7 +60,20 @@
    - Service stopped mid-pause.
    - Self and system UI are ignored.
 
+## Phase 2: as built
+
+- `core/PauseMachine` is pure: `handle(PauseEvent): List<PauseAction>`. The service (`YonisoAccessibilityService`) is a thin adapter. It queues events raised while actions run, so the machine is never re-entered.
+- **No DISMISSING state.** `hide()` is synchronous on the main thread, so no event can arrive mid-dismissal. The states are `IDLE`, `PAUSING` and `AWAITING_CHOICE`.
+- **Cooldown starts on success.** `ShowOverlay` → the service reports `OverlayShown`/`OverlayFailed`. The cooldown is recorded, and the timer started, only on `OverlayShown`.
+- The machine keeps cooldown timestamps in memory (loaded at start) and emits `SaveCooldown` for the service to persist. `CooldownStore` is implemented by `data/SharedPreferencesCooldownStore` for now.
+- `ForegroundTracker` filters ignored packages and duplicates. Screen off resets it, but the Continue anti-loop rule survives screen off. Service stop clears both.
+- `SettingsChanged` is already supported: disabling, or deselecting the paused app, dismisses the overlay. A new cooldown length applies to existing timestamps.
+- The overlay no longer shows a numeric countdown. The service's timer flips it to the choice. The breathing circle keeps breathing during the choice, and is static when `ANIMATOR_DURATION_SCALE == 0`.
+- Settings are still hardcoded (`PHASE_2_SETTINGS`: Chrome, 10s pause, 5 min cooldown).
+
 ## Phase 3: app UI and persistence
+
+- Replace `PHASE_2_SETTINGS` and `SharedPreferencesCooldownStore` with DataStore. Feed setting changes in as `PauseEvent.SettingsChanged`.
 
 - **DataStore preferences:** enabled flag, selected packages, pause duration, cooldown duration, cooldown timestamps. The service observes them as a Flow.
 - **App discovery:** query `MAIN`/`LAUNCHER` activities, declared with `<queries>` in the manifest. Do **not** use `QUERY_ALL_PACKAGES`.
@@ -78,5 +91,4 @@
 ## Phase 4: testing and polish
 
 - Follow PRD Phase 4 on the emulator and the Pixel 8.
-- One case still unverified on a physical device: swiping home *during* a pause should close the overlay. It works on the emulator.
 - Keep the README's platform limitations up to date, and review Google Play's accessibility disclosure requirements before distribution.

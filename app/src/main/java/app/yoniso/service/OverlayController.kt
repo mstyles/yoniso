@@ -2,8 +2,12 @@ package app.yoniso.service
 
 import android.content.Context
 import android.graphics.PixelFormat
+import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -21,17 +25,31 @@ internal class OverlayController(private val context: Context) {
     private var view: ComposeView? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
 
-    val isShowing: Boolean get() = view != null
+    /** Whether the current overlay shows Continue / Exit. Reset for each new overlay. */
+    private var showChoice by mutableStateOf(false)
 
-    fun show(onContinue: () -> Unit, onExit: () -> Unit) {
-        if (view != null) return
+    /**
+     * Adds the overlay with the breathing pause. Returns true if the overlay is showing
+     * (including if it already was), false if the window could not be added.
+     */
+    fun show(onContinue: () -> Unit, onExit: () -> Unit): Boolean {
+        if (view != null) return true
 
+        showChoice = false
+        val reducedMotion = isReducedMotion()
         val owner = OverlayLifecycleOwner().also { it.start() }
         val composeView = ComposeView(context).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            setContent { PauseOverlay(onContinue = onContinue, onExit = onExit) }
+            setContent {
+                PauseOverlay(
+                    showChoice = showChoice,
+                    reducedMotion = reducedMotion,
+                    onContinue = onContinue,
+                    onExit = onExit,
+                )
+            }
         }
 
         val params = WindowManager.LayoutParams(
@@ -45,15 +63,26 @@ internal class OverlayController(private val context: Context) {
             PixelFormat.TRANSLUCENT,
         )
 
-        try {
+        return try {
             windowManager.addView(composeView, params)
             view = composeView
             lifecycleOwner = owner
+            true
         } catch (e: RuntimeException) {
             Log.w(TAG, "Could not add overlay", e)
             owner.destroy()
+            false
         }
     }
+
+    /** Switches the showing overlay from the pause to Continue / Exit. */
+    fun showChoice() {
+        if (view != null) showChoice = true
+    }
+
+    /** Animations are switched off system-wide (the closest Android has to "reduce motion"). */
+    private fun isReducedMotion(): Boolean =
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
 
     fun hide() {
         val current = view ?: return
