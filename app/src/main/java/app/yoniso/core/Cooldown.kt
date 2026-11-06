@@ -6,14 +6,9 @@ fun interface Clock {
 }
 
 /**
- * Stores when a pause was last shown for each package. Wall-clock timestamps are used
- * (not `elapsedRealtime`, which resets on boot) so cooldowns survive reboots.
+ * Cooldown timestamps are wall-clock times (not `elapsedRealtime`, which resets on boot)
+ * so cooldowns survive reboots.
  */
-interface CooldownStore {
-    fun load(): Map<String, Long>
-    fun save(packageName: String, shownAt: Long)
-}
-
 object CooldownPolicy {
     /**
      * Whether an app whose pause was last shown at [lastShownAt] is still cooling down at [now].
@@ -24,5 +19,14 @@ object CooldownPolicy {
         if (lastShownAt == null || cooldownMillis <= 0) return false
         if (lastShownAt > now) return false
         return now - lastShownAt < cooldownMillis
+    }
+
+    /**
+     * The timestamps still worth keeping at [now]: those that could still block a pause
+     * under the longest cooldown option. Expired and future timestamps are dropped.
+     */
+    fun prune(lastShownAt: Map<String, Long>, now: Long): Map<String, Long> {
+        val longest = CooldownDuration.entries.maxOf { it.millis }
+        return lastShownAt.filterValues { isCoolingDown(it, now, longest) }
     }
 }

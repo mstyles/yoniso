@@ -10,6 +10,9 @@ enum class PauseDuration(val seconds: Int) {
 
     companion object {
         val DEFAULT = TEN
+
+        /** The option lasting [seconds], or [DEFAULT] if there is none (e.g. a stale stored value). */
+        fun fromSeconds(seconds: Int?): PauseDuration = entries.firstOrNull { it.seconds == seconds } ?: DEFAULT
     }
 }
 
@@ -25,6 +28,9 @@ enum class CooldownDuration(val minutes: Int) {
 
     companion object {
         val DEFAULT = FIVE
+
+        /** The option lasting [minutes], or [DEFAULT] if there is none (e.g. a stale stored value). */
+        fun fromMinutes(minutes: Int?): CooldownDuration = entries.firstOrNull { it.minutes == minutes } ?: DEFAULT
     }
 }
 

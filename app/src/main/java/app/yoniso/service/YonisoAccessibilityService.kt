@@ -11,26 +11,38 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
+import app.yoniso.MainActivity
 import app.yoniso.core.Clock
-import app.yoniso.core.CooldownStore
 import app.yoniso.core.PauseAction
 import app.yoniso.core.PauseEvent
 import app.yoniso.core.PauseMachine
-import app.yoniso.core.PauseSettings
-import app.yoniso.data.SharedPreferencesCooldownStore
+import app.yoniso.data.InstalledApps
+import app.yoniso.data.SettingsRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Thin adapter around [PauseMachine]: turns Android callbacks into [PauseEvent]s and
  * carries out the [PauseAction]s that come back. All decisions live in the machine.
  *
  * Everything runs on the main thread: accessibility events, the screen-off receiver,
- * overlay button clicks and the pause timer.
+ * overlay button clicks, the pause timer and settings updates.
+ *
+ * The machine is created once the stored settings and cooldowns have loaded. Events
+ * that arrive before then (a few milliseconds after connecting) are dropped.
  */
 class YonisoAccessibilityService : AccessibilityService() {
 
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var overlay: OverlayController
-    private lateinit var cooldownStore: CooldownStore
+    private lateinit var repository: SettingsRepository
+    private var scope: CoroutineScope? = null
     private var machine: PauseMachine? = null
     private var receiverRegistered = false
 
@@ -49,14 +61,9 @@ class YonisoAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         overlay = OverlayController(this)
-        cooldownStore = SharedPreferencesCooldownStore(this)
+        repository = SettingsRepository(this)
         val ignored = buildIgnoredPackages()
-        machine = PauseMachine(
-            settings = PHASE_2_SETTINGS,
-            ignoredPackages = ignored,
-            savedCooldowns = cooldownStore.load(),
-            clock = Clock { System.currentTimeMillis() },
-        )
+        scope = MainScope().also { it.launch { observeSettings(ignored) } }
         ContextCompat.registerReceiver(
             this,
             screenOffReceiver,
@@ -67,10 +74,34 @@ class YonisoAccessibilityService : AccessibilityService() {
         Log.d(TAG, "Service connected; ignoring $ignored")
     }
 
+    /** Creates the machine from the first stored settings, then feeds it every change. */
+    private suspend fun observeSettings(ignored: Set<String>) {
+        val savedCooldowns = repository.loadCooldowns()
+        val apps = InstalledApps(this)
+        repository.settings
+            // The app list never offers these, but a stored selection could predate a change
+            // (e.g. a newly installed launcher), so they are removed here as well.
+            .map { it.copy(selectedPackages = it.selectedPackages - apps.neverPausable()) }
+            .flowOn(Dispatchers.IO)
+            .distinctUntilChanged()
+            .collect { settings ->
+                if (machine == null) {
+                    machine = PauseMachine(settings, ignored, savedCooldowns, Clock { System.currentTimeMillis() })
+                    Log.d(TAG, "Machine ready: $settings")
+                } else {
+                    dispatch(PauseEvent.SettingsChanged(settings))
+                }
+            }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
-        dispatch(PauseEvent.WindowChanged(pkg))
+        // Yoniso's own windows: the overlay must not count as leaving the paused app, but the
+        // settings screen is a real app switch. Without that, Chrome → Yoniso → Chrome would
+        // look like Chrome never left, so choosing Chrome in Yoniso and going back wouldn't pause.
+        if (pkg == packageName && event.className?.toString() != MainActivity::class.java.name) return
+        dispatch(PauseEvent.WindowChanged(pkg, isFullScreen = event.isFullScreen))
     }
 
     override fun onInterrupt() = Unit
@@ -119,12 +150,14 @@ class YonisoAccessibilityService : AccessibilityService() {
                 handler.postDelayed(timerFinished, action.millis)
             }
             PauseAction.CancelTimer -> handler.removeCallbacks(timerFinished)
-            is PauseAction.SaveCooldown -> cooldownStore.save(action.packageName, action.shownAt)
+            is PauseAction.SaveCooldown -> scope?.launch { repository.saveCooldown(action.packageName, action.shownAt) }
         }
     }
 
     private fun cleanUp() {
         dispatch(PauseEvent.ServiceStopped)
+        scope?.cancel()
+        scope = null
         machine = null
         // Belt and braces: never leave a window or timer behind, whatever state the machine was in.
         handler.removeCallbacks(timerFinished)
@@ -140,14 +173,12 @@ class YonisoAccessibilityService : AccessibilityService() {
             ?.inputMethodList
             ?.map { it.packageName }
             .orEmpty()
-        return setOf(packageName, SYSTEM_UI_PACKAGE) + imePackages
+        // Yoniso's own package is filtered in onAccessibilityEvent instead, and is never pausable.
+        return setOf(SYSTEM_UI_PACKAGE) + imePackages
     }
 
     private companion object {
         const val TAG = "Yoniso"
         const val SYSTEM_UI_PACKAGE = "com.android.systemui"
-
-        /** Phase 2: hardcoded settings with Chrome as the target. Replaced by stored settings in Phase 3. */
-        val PHASE_2_SETTINGS = PauseSettings(selectedPackages = setOf("com.android.chrome"))
     }
 }

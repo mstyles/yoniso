@@ -13,8 +13,11 @@ enum class PauseState {
 
 /** Everything that can happen to the machine. The service turns Android callbacks into these. */
 sealed interface PauseEvent {
-    /** A window-state event from [packageName]. May be a duplicate or an ignored package. */
-    data class WindowChanged(val packageName: String) : PauseEvent
+    /**
+     * A window-state event from [packageName]. May be a duplicate or an ignored package.
+     * [isFullScreen] is false for dialogs and popups that don't fill the screen.
+     */
+    data class WindowChanged(val packageName: String, val isFullScreen: Boolean = true) : PauseEvent
 
     /** The overlay requested by [PauseAction.ShowOverlay] was added. */
     data object OverlayShown : PauseEvent
@@ -56,6 +59,7 @@ sealed interface PauseAction {
  * event can arrive while it is being removed.
  *
  * Rules:
+ * - Popups (windows that don't fill the screen) from unselected apps are not app switches.
  * - Only one overlay at a time. A new foreground app hides any current overlay before
  *   the new app is considered.
  * - An app is paused only if Yoniso is enabled, the app is selected, its cooldown has
@@ -87,7 +91,7 @@ class PauseMachine(
     private var continuedPackage: String? = null
 
     fun handle(event: PauseEvent): List<PauseAction> = when (event) {
-        is PauseEvent.WindowChanged -> onWindowChanged(event.packageName)
+        is PauseEvent.WindowChanged -> onWindowChanged(event.packageName, event.isFullScreen)
         PauseEvent.OverlayShown -> onOverlayShown()
         PauseEvent.OverlayFailed -> onOverlayFailed()
         PauseEvent.TimerFinished -> onTimerFinished()
@@ -105,7 +109,11 @@ class PauseMachine(
         is PauseEvent.SettingsChanged -> onSettingsChanged(event.settings)
     }
 
-    private fun onWindowChanged(packageName: String): List<PauseAction> {
+    private fun onWindowChanged(packageName: String, isFullScreen: Boolean): List<PauseAction> {
+        // A popup from an app that isn't selected (e.g. a Play Store prompt over a game) is not a
+        // switch: the app underneath is still in front. A selected app's own small window, such
+        // as its splash screen at cold start, still counts, since it may be the first sign of it.
+        if (!isFullScreen && packageName !in settings.selectedPackages) return emptyList()
         if (!foreground.onWindowChanged(packageName)) return emptyList()
 
         val actions = dismiss().toMutableList()

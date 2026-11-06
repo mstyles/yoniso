@@ -3,8 +3,7 @@ package app.yoniso.core
 /**
  * Turns raw window-state events into foreground app changes.
  *
- * Events from [ignoredPackages] (Yoniso itself, so its own overlay; system UI; keyboards)
- * are not app switches. Repeated events from the current foreground app are duplicates.
+ * Events from [ignoredPackages] (system UI, keyboards) are not app switches. Repeated events from the current foreground app are duplicates.
  * Anything else, including the home screen, counts as a new foreground app.
  */
 class ForegroundTracker(private val ignoredPackages: Set<String>) {

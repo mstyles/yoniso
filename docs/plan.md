@@ -6,7 +6,7 @@
 
 - [x] **Phase 1: proof of concept.** Commit `08a133f`. Tested on the emulator (API 36) and a Pixel 8 (Android 17): show, Continue, Exit, screen off, and service disable all work.
 - [x] **Phase 2: core logic and tests.** 42 unit tests pass. Tested on the emulator: pause, choice, Continue, Exit, cooldown, switching mid-pause, unlock and reduced motion. Also tested on the Pixel 8, including swiping home during a pause.
-- [ ] Phase 3: app UI and persistence
+- [x] **Phase 3: app UI and persistence.** 52 unit tests pass. Tested on the emulator: onboarding, settings, app list and search, exclusions, settings reaching the service live, and pausing on return from Yoniso. Tested on the Pixel 8 with A Dance of Fire and Ice, opened from the home screen and from the app drawer: every pause ran its full length.
 - [ ] Phase 4: testing and polish
 
 ## Project setup (done)
@@ -87,6 +87,20 @@
   - Searchable app list with icons and toggles.
   - First-launch onboarding with the disclosure from PRD FR-6 and a button opening `Settings.ACTION_ACCESSIBILITY_SETTINGS`.
 - Re-check service status in `onResume` to handle revocation.
+
+## Phase 3: as built
+
+- `data/SettingsRepository` holds two DataStore files: `settings` (enabled, selected packages, pause seconds, cooldown minutes, onboarding done) and `cooldowns` (one long per package). They are separate so recording a pause doesn't re-emit settings. Unreadable data falls back to defaults. `SharedPreferencesCooldownStore` and the `CooldownStore` interface are gone, with no migration because nothing was released.
+- Saving a cooldown prunes timestamps that can no longer block a pause (`CooldownPolicy.prune`), so the file stays small.
+- The service builds the machine from the first settings emission, then feeds later ones in as `SettingsChanged`. Events in the few milliseconds before that are dropped.
+- `data/InstalledApps.neverPausable()` (Yoniso, launchers, default dialer, Settings) is removed from the selection both in the app list **and** in the service, so a stale stored selection (e.g. a newly set launcher) can never pause.
+- **Own-package events:** Yoniso's package is no longer in the ignored set. The service drops only events from its own package whose class isn't `MainActivity` (the overlay reports `ComposeView`). Otherwise Chrome → Yoniso → Chrome looked like Chrome never left, so choosing an app and going back to it didn't pause.
+- **Popups are not app switches.** `WindowChanged` carries `AccessibilityEvent.isFullScreen`. A non-full-screen window from an unselected app is ignored completely: it neither dismisses a pause nor resets the foreground or the Continue rule. Found on the Pixel with A Dance of Fire and Ice (`com.fizzd.connectedworlds`): a Play Store popup (`com.android.vending`, ComposeView, not full screen) opens over the game about 0.3s after launch and dismissed the pause, and with no cooldown it re-paused and flickered. A selected app's own small windows still count, because that game's cold-start splash (`FrameLayout`, not full screen) is the first event it sends. Play Games (`com.google.android.gms`) also shows a popup at launch.
+- The user's first try was dismissed by a `nexuslauncher` event 0.8s after the pause showed, but this didn't happen again: after the fix, launches from both the home screen and the app drawer kept the pause. Watch for late launcher events during Phase 4 switching tests.
+- **Audio during a pause** (`service/PauseAudio`, owned by `OverlayController` so it follows the overlay's lifetime). It holds `AUDIOFOCUS_GAIN_TRANSIENT`, and it also mutes `STREAM_MUSIC`, because A Dance of Fire and Ice (Unity, AAudio) never requests focus and kept playing. It unmutes only if Yoniso did the muting. A `pause_audio` SharedPreferences flag is committed synchronously before muting, and the service restores the volume on connect if a run died mid-pause (tested by killing the process on the emulator). Side effect: background music also pauses or mutes for the length of the pause.
+- UI: no navigation library. `MainActivity` switches between onboarding, settings and the app list. Pause and cooldown use single-choice chip rows announced as radio buttons. App icons load lazily off the main thread. Edge-to-edge, light and dark themes in the overlay's palette.
+- The settings screen explains Android 13+ "restricted settings" for sideloaded installs.
+- Note: `pm clear` or a force stop disables the accessibility service on the device, so re-enable it after either.
 
 ## Phase 4: testing and polish
 

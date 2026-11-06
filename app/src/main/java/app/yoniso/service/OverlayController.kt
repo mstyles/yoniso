@@ -16,6 +16,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 /**
  * Owns the single mindfulness overlay window. Only one overlay exists at a time,
  * and [hide] is safe to call at any point, including when nothing is showing.
+ * While it shows, it silences the app underneath (see [PauseAudio]).
  *
  * Uses TYPE_ACCESSIBILITY_OVERLAY, which an AccessibilityService may add without the
  * "display over other apps" permission. Must be called on the main thread.
@@ -24,6 +25,10 @@ internal class OverlayController(private val context: Context) {
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var view: ComposeView? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
+    private val audio = PauseAudio(context).also {
+        // Created when the service connects: undo a mute left by a run that died mid-pause.
+        it.restoreIfInterrupted()
+    }
 
     /** Whether the current overlay shows Continue / Exit. Reset for each new overlay. */
     private var showChoice by mutableStateOf(false)
@@ -67,6 +72,7 @@ internal class OverlayController(private val context: Context) {
             windowManager.addView(composeView, params)
             view = composeView
             lifecycleOwner = owner
+            audio.acquire()
             true
         } catch (e: RuntimeException) {
             Log.w(TAG, "Could not add overlay", e)
@@ -87,6 +93,7 @@ internal class OverlayController(private val context: Context) {
     fun hide() {
         val current = view ?: return
         view = null
+        audio.release()
         try {
             windowManager.removeViewImmediate(current)
         } catch (e: IllegalArgumentException) {

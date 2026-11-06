@@ -1,5 +1,6 @@
 package app.yoniso.core
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,5 +37,18 @@ class CooldownPolicyTest {
     @Test
     fun `shown at this exact moment is cooling down`() {
         assertTrue(CooldownPolicy.isCoolingDown(1_000, now = 1_000, cooldownMillis = fiveMinutes))
+    }
+
+    @Test
+    fun `prune keeps only timestamps that could still block a pause`() {
+        val longest = CooldownDuration.THIRTY.millis
+        val now = 10 * longest
+        val stored = mapOf(
+            "recent" to now - 1_000,
+            "justExpired" to now - longest,
+            "old" to 0L,
+            "future" to now + 1_000,
+        )
+        assertEquals(mapOf("recent" to now - 1_000), CooldownPolicy.prune(stored, now))
     }
 }

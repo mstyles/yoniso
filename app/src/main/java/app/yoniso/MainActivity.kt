@@ -1,6 +1,7 @@
 package app.yoniso
 
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
@@ -8,46 +9,77 @@ import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.yoniso.data.InstalledApps
+import app.yoniso.data.SettingsRepository
 import app.yoniso.service.YonisoAccessibilityService
+import app.yoniso.ui.AppListScreen
+import app.yoniso.ui.OnboardingScreen
+import app.yoniso.ui.SettingsScreen
+import app.yoniso.ui.YonisoTheme
+import kotlinx.coroutines.launch
 
-/** Phase 1: shows whether the service is enabled and links to accessibility settings. */
+/**
+ * Hosts the three screens: first-launch onboarding, the main settings and the app list.
+ * Settings are read from and written straight to [SettingsRepository]; the accessibility
+ * service observes the same store.
+ */
 class MainActivity : ComponentActivity() {
 
+    /** Re-checked in [onResume], since the user can turn the service off at any time. */
     private var serviceEnabled by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val repository = SettingsRepository(this)
+        val installedApps = InstalledApps(this)
+
         setContent {
-            MaterialTheme {
-                Surface(Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Text("Yoniso", style = MaterialTheme.typography.headlineMedium)
-                        Text(
-                            if (serviceEnabled) "Accessibility service: on" else "Accessibility service: off",
-                        )
-                        Text("Proof of concept: opening Chrome shows a pause.")
-                        Button(onClick = {
-                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                        }) {
-                            Text("Open accessibility settings")
-                        }
-                    }
+            YonisoTheme {
+                val onboardingDone by repository.onboardingDone.collectAsStateWithLifecycle(initialValue = null)
+                val settings by repository.settings.collectAsStateWithLifecycle(initialValue = null)
+                var choosingApps by rememberSaveable { mutableStateOf(false) }
+                val scope = rememberCoroutineScope()
+
+                val loadedSettings = settings
+                when {
+                    // Still loading: a blank surface for a few milliseconds.
+                    onboardingDone == null || loadedSettings == null -> Surface(Modifier.fillMaxSize()) {}
+
+                    onboardingDone == false -> OnboardingScreen(
+                        onOpenAccessibilitySettings = {
+                            scope.launch { repository.setOnboardingDone() }
+                            openAccessibilitySettings()
+                        },
+                        onNotNow = { scope.launch { repository.setOnboardingDone() } },
+                    )
+
+                    choosingApps -> AppListScreen(
+                        installedApps = installedApps,
+                        selectedPackages = loadedSettings.selectedPackages,
+                        onSelectedChange = { pkg, selected -> scope.launch { repository.setSelected(pkg, selected) } },
+                        onBack = { choosingApps = false },
+                    )
+
+                    else -> SettingsScreen(
+                        settings = loadedSettings,
+                        serviceEnabled = serviceEnabled,
+                        onEnabledChange = { scope.launch { repository.setEnabled(it) } },
+                        onChooseApps = { choosingApps = true },
+                        onPauseDurationChange = { scope.launch { repository.setPauseDuration(it) } },
+                        onCooldownDurationChange = { scope.launch { repository.setCooldownDuration(it) } },
+                        onOpenAccessibilitySettings = ::openAccessibilitySettings,
+                    )
                 }
             }
         }
@@ -56,6 +88,14 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         serviceEnabled = isServiceEnabled()
+    }
+
+    private fun openAccessibilitySettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        } catch (_: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_SETTINGS))
+        }
     }
 
     private fun isServiceEnabled(): Boolean {

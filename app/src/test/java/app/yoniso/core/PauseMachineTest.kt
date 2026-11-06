@@ -163,6 +163,52 @@ class PauseMachineTest {
         assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(A)))
     }
 
+    // Popups
+
+    @Test
+    fun `popup from an unselected app does not dismiss the pause`() {
+        val m = machine()
+        m.pause(A)
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(OTHER, isFullScreen = false)))
+        assertEquals(PauseState.PAUSING, m.state)
+        assertEquals(listOf(ShowChoice), m.handle(TimerFinished))
+    }
+
+    @Test
+    fun `popup from an unselected app does not make the paused app a new arrival`() {
+        // The phone bug: a Play Store popup over a game dismissed the pause, the game
+        // reported itself again, and with no cooldown it paused again.
+        val m = machine(PauseSettings(selectedPackages = setOf(A), cooldownDuration = CooldownDuration.NONE))
+        m.pause(A)
+        m.handle(WindowChanged(OTHER, isFullScreen = false))
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(A)))
+        assertEquals(PauseState.PAUSING, m.state)
+    }
+
+    @Test
+    fun `popup from an unselected app after continue does not undo the anti-loop rule`() {
+        val m = machine(PauseSettings(selectedPackages = setOf(A), cooldownDuration = CooldownDuration.NONE))
+        m.pauseUntilChoice(A)
+        m.handle(Continue)
+        m.handle(WindowChanged(OTHER, isFullScreen = false))
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(A)))
+    }
+
+    @Test
+    fun `selected app's own non-full-screen window, like a splash screen, pauses`() {
+        val m = machine()
+        m.handle(WindowChanged(HOME))
+        assertEquals(listOf(ShowOverlay(A)), m.handle(WindowChanged(A, isFullScreen = false)))
+    }
+
+    @Test
+    fun `full-screen unselected app mid-pause still dismisses the overlay`() {
+        val m = machine()
+        m.pause(A)
+        assertEquals(listOf(CancelTimer, HideOverlay), m.handle(WindowChanged(HOME, isFullScreen = true)))
+        assertEquals(PauseState.IDLE, m.state)
+    }
+
     // Anti-loop
 
     @Test
