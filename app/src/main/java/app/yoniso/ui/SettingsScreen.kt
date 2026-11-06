@@ -140,8 +140,9 @@ private fun AccessibilityStatus(serviceEnabled: Boolean, onOpenAccessibilitySett
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Accessibility access is off", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Yoniso needs it to notice when a selected app opens. It only sees which app " +
-                    "opened, never what is on your screen, and nothing leaves your phone.",
+                "Yoniso uses Android's accessibility service to notice when a selected app opens, " +
+                    "and uses that only to show the pause. It only sees which app opened, never what " +
+                    "is on your screen or what you type, and nothing is shared or leaves your phone.",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
@@ -150,7 +151,8 @@ private fun AccessibilityStatus(serviceEnabled: Boolean, onOpenAccessibilitySett
                     "and choose \"Allow restricted settings\".",
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(onClick = onOpenAccessibilitySettings) { Text("Open accessibility settings") }
+            // Google Play requires an explicit "agree" right after the disclosure above.
+            Button(onClick = onOpenAccessibilitySettings) { Text("Agree and open settings") }
         }
     }
 }

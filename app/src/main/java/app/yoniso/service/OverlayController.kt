@@ -66,7 +66,10 @@ internal class OverlayController(private val context: Context) {
             // Home and Recents still work, and leaving the app dismisses the overlay.
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
-        )
+        ).apply {
+            // Shown in the window list that accessibility services such as TalkBack read out.
+            title = "Yoniso pause"
+        }
 
         return try {
             windowManager.addView(composeView, params)

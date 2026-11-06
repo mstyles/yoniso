@@ -7,6 +7,7 @@ import app.yoniso.core.PauseAction.SaveCooldown
 import app.yoniso.core.PauseAction.ShowChoice
 import app.yoniso.core.PauseAction.ShowOverlay
 import app.yoniso.core.PauseAction.StartTimer
+import app.yoniso.core.PauseEvent.CallStarted
 import app.yoniso.core.PauseEvent.Continue
 import app.yoniso.core.PauseEvent.Exit
 import app.yoniso.core.PauseEvent.OverlayFailed
@@ -95,7 +96,7 @@ class PauseMachineTest {
     @Test
     fun `stray events in IDLE do nothing`() {
         val m = machine()
-        for (event in listOf(TimerFinished, Continue, Exit, OverlayShown, OverlayFailed, ScreenOff, ServiceStopped)) {
+        for (event in listOf(TimerFinished, Continue, Exit, OverlayShown, OverlayFailed, ScreenOff, CallStarted, ServiceStopped)) {
             assertEquals(emptyList<PauseAction>(), m.handle(event))
             assertEquals(PauseState.IDLE, m.state)
         }
@@ -385,6 +386,32 @@ class PauseMachineTest {
         m.handle(ScreenOff)
         now += minutes(5)
         assertEquals(listOf(ShowOverlay(A)), m.handle(WindowChanged(A)))
+    }
+
+    @Test
+    fun `a call ringing mid-pause hides the overlay`() {
+        val m = machine()
+        m.pause(A)
+        assertEquals(listOf(CancelTimer, HideOverlay), m.handle(CallStarted))
+        assertEquals(PauseState.IDLE, m.state)
+    }
+
+    @Test
+    fun `a call ringing while awaiting choice hides the overlay`() {
+        val m = machine()
+        m.pauseUntilChoice(A)
+        assertEquals(listOf(HideOverlay), m.handle(CallStarted))
+        assertEquals(PauseState.IDLE, m.state)
+    }
+
+    @Test
+    fun `after a call is declined the app underneath is not paused again`() {
+        val m = machine(PauseSettings(selectedPackages = setOf(A), cooldownDuration = CooldownDuration.NONE))
+        m.pause(A)
+        m.handle(CallStarted)
+        // The heads-up call is system UI; afterwards A just reports itself again.
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(SYSTEM_UI)))
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(A)))
     }
 
     @Test

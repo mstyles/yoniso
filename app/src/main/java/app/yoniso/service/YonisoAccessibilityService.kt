@@ -42,6 +42,7 @@ class YonisoAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var overlay: OverlayController
     private lateinit var repository: SettingsRepository
+    private lateinit var calls: CallWatcher
     private var scope: CoroutineScope? = null
     private var machine: PauseMachine? = null
     private var receiverRegistered = false
@@ -60,7 +61,15 @@ class YonisoAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        // The system can reconnect a running service (e.g. when another accessibility client
+        // binds). Tear down the previous connection first so no overlay, receiver or settings
+        // observer is left behind.
+        if (scope != null) {
+            Log.d(TAG, "Reconnected without unbind; cleaning up the previous connection")
+            cleanUp()
+        }
         overlay = OverlayController(this)
+        calls = CallWatcher(this) { dispatch(PauseEvent.CallStarted) }.also { it.start() }
         repository = SettingsRepository(this)
         val ignored = buildIgnoredPackages()
         scope = MainScope().also { it.launch { observeSettings(ignored) } }
@@ -89,6 +98,7 @@ class YonisoAccessibilityService : AccessibilityService() {
                     machine = PauseMachine(settings, ignored, savedCooldowns, Clock { System.currentTimeMillis() })
                     Log.d(TAG, "Machine ready: $settings")
                 } else {
+                    Log.d(TAG, "Settings changed: $settings")
                     dispatch(PauseEvent.SettingsChanged(settings))
                 }
             }
@@ -107,6 +117,7 @@ class YonisoAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: Intent?): Boolean {
+        Log.d(TAG, "Service unbound")
         cleanUp()
         return super.onUnbind(intent)
     }
@@ -136,7 +147,8 @@ class YonisoAccessibilityService : AccessibilityService() {
     private fun perform(action: PauseAction) {
         when (action) {
             is PauseAction.ShowOverlay -> {
-                val shown = overlay.show(
+                // Never cover a ringing or ongoing call; the app opens without a pause.
+                val shown = !calls.isCallActive() && overlay.show(
                     onContinue = { dispatch(PauseEvent.Continue) },
                     onExit = { dispatch(PauseEvent.Exit) },
                 )
@@ -162,6 +174,7 @@ class YonisoAccessibilityService : AccessibilityService() {
         // Belt and braces: never leave a window or timer behind, whatever state the machine was in.
         handler.removeCallbacks(timerFinished)
         if (::overlay.isInitialized) overlay.hide()
+        if (::calls.isInitialized) calls.stop()
         if (receiverRegistered) {
             unregisterReceiver(screenOffReceiver)
             receiverRegistered = false

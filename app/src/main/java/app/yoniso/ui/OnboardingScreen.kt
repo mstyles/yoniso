@@ -65,14 +65,16 @@ fun OnboardingScreen(onOpenAccessibilitySettings: () -> Unit, onNotNow: () -> Un
             )
 
             Text(
-                "In the next screen, tap Yoniso (it may be under \"Downloaded apps\"), then turn it on.",
+                "If you agree, the next screen is Android's accessibility settings. Tap Yoniso (it may be under \"Downloaded apps\"), then turn it on.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(Modifier.height(8.dp))
             Button(onClick = onOpenAccessibilitySettings, modifier = Modifier.fillMaxWidth()) {
-                Text("Open accessibility settings")
+                // Google Play requires an affirmative "agree" action after the disclosure.
+                // "Not now" declines; the settings screen then repeats the disclosure.
+                Text("Agree and open settings")
             }
             TextButton(onClick = onNotNow, modifier = Modifier.fillMaxWidth()) {
                 Text("Not now")

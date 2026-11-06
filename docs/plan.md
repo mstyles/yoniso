@@ -7,7 +7,7 @@
 - [x] **Phase 1: proof of concept.** Commit `08a133f`. Tested on the emulator (API 36) and a Pixel 8 (Android 17): show, Continue, Exit, screen off, and service disable all work.
 - [x] **Phase 2: core logic and tests.** 42 unit tests pass. Tested on the emulator: pause, choice, Continue, Exit, cooldown, switching mid-pause, unlock and reduced motion. Also tested on the Pixel 8, including swiping home during a pause.
 - [x] **Phase 3: app UI and persistence.** 52 unit tests pass. Tested on the emulator: onboarding, settings, app list and search, exclusions, settings reaching the service live, and pausing on return from Yoniso. Tested on the Pixel 8 with A Dance of Fire and Ice, opened from the home screen and from the app drawer: every pause ran its full length.
-- [ ] Phase 4: testing and polish
+- [ ] **Phase 4: testing and polish.** In progress. Emulator tests, the call fix, polish and the Play disclosure review are committed. The new onboarding consent flow was tested on the Pixel 8. The Pixel tests for calls, PIN lock, rapid switching, dark mode and reboot are still to do.
 
 ## Project setup (done)
 
@@ -106,3 +106,24 @@
 
 - Follow PRD Phase 4 on the emulator and the Pixel 8.
 - Keep the README's platform limitations up to date, and review Google Play's accessibility disclosure requirements before distribution.
+
+## Phase 4: as built so far
+
+Emulator tests (API 36). All pass after the call fix:
+- **Rapid switching:** Chrome / Calendar (both selected) and Clock (unselected) launched in quick succession, 22 switches. There was always exactly one overlay window, and it belonged to the last app.
+- **Lock / unlock:** after Continue, locking and unlocking doesn't pause again. Locking mid-pause removes the overlay. Unlocking with no cooldown pauses again, as designed.
+- **Service restart:** reinstalling the app reconnects the service with the stored settings. A tooling quirk: `uiautomator dump` makes Android unbind and rebind every accessibility service, so it dismisses any pause. Use screenshots during pause tests.
+- **Revocation mid-pause:** the overlay is removed, media is unmuted, and the settings screen shows the access-off card.
+- **Incoming call (bug found and fixed):** the overlay sits above system UI, so it hid the heads-up call's Answer / Decline buttons for the whole pause. Now `service/CallWatcher` reports `PauseEvent.CallStarted`, which dismisses the pause. It uses `AudioManager.OnModeChangedListener` on Android 12+ and `PhoneStateListener` call state on 8–11, so no permission is needed. `ShowOverlay` is also refused while a call is active (the service reports `OverlayFailed`). The app underneath stays the foreground app, so a declined call doesn't re-pause it.
+- **Reconnect guard:** `onServiceConnected` cleans up a previous connection if the system ever reconnects without unbinding. Not observed (the system does unbind first), but this would otherwise orphan an overlay.
+
+Polish:
+- The overlay has a dark palette that follows the system theme.
+- Content fades in over 600ms, and the pause text crossfades to the choice. With reduced motion, both are instant.
+- The text area has a fixed minimum height, so the circle no longer jumps when the choice appears.
+- TalkBack: the overlay has a pane title ("Mindful pause"), the window title "Yoniso pause", and a polite live region for the change to the choice.
+- Adaptive app icon: the breathing circle, with a monochrome layer for themed icons.
+- `dataExtractionRules` exclude everything from cloud backup and device transfer.
+- Play disclosure review (see the README, "Before publishing on Google Play"). The onboarding and settings buttons now read "Agree and open settings", an explicit consent step, and the settings card's disclosure now covers what is accessed, how it is used, and that nothing is shared.
+
+55 unit tests pass. Lint: only `OldTargetApi` (targetSdk 36) remains.

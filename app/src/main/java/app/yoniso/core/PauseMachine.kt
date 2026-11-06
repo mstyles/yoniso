@@ -29,6 +29,13 @@ sealed interface PauseEvent {
     data object Continue : PauseEvent
     data object Exit : PauseEvent
     data object ScreenOff : PauseEvent
+
+    /**
+     * A phone call started ringing (or a call began). The overlay would cover the call's
+     * Answer / Decline controls, so it goes. The app underneath stays the foreground app,
+     * so it isn't paused again just for reporting itself after the call.
+     */
+    data object CallStarted : PauseEvent
     data object ServiceStopped : PauseEvent
     data class SettingsChanged(val settings: PauseSettings) : PauseEvent
 }
@@ -67,6 +74,7 @@ sealed interface PauseAction {
  * - After Continue, that app is not paused again until a different app has come to the
  *   front. This holds even with no cooldown, e.g. after the screen turns off and on.
  * - The cooldown starts when the overlay is actually shown.
+ * - A ringing call always removes the overlay, so it can be answered.
  */
 class PauseMachine(
     settings: PauseSettings,
@@ -101,6 +109,7 @@ class PauseMachine(
             foreground.reset()
             dismiss()
         }
+        PauseEvent.CallStarted -> dismiss()
         PauseEvent.ServiceStopped -> {
             foreground.reset()
             continuedPackage = null
