@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Yoniso</string>
+    <string name="accessibility_service_description">Yoniso notices when an app you selected comes to the front and shows a short breathing pause before you continue. It only reads which app is open, never what is on the screen, and nothing leaves your device.</string>
+</resources>
