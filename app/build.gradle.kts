@@ -17,9 +17,24 @@ android {
         versionName = "0.1"
     }
 
+    // The upload key lives outside the repo. Its path and passwords come from
+    // ~/.gradle/gradle.properties (YONISO_UPLOAD_*); without them, release builds are unsigned.
+    val uploadStoreFile = providers.gradleProperty("YONISO_UPLOAD_STORE_FILE").orNull
+    signingConfigs {
+        if (uploadStoreFile != null) {
+            create("upload") {
+                storeFile = file(uploadStoreFile)
+                storePassword = providers.gradleProperty("YONISO_UPLOAD_STORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("YONISO_UPLOAD_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("YONISO_UPLOAD_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("upload")
         }
     }
 
