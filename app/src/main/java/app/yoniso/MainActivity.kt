@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.yoniso.data.InstalledApps
 import app.yoniso.data.SettingsRepository
 import app.yoniso.service.YonisoAccessibilityService
+import app.yoniso.ui.AboutScreen
 import app.yoniso.ui.AppListScreen
 import app.yoniso.ui.OnboardingScreen
 import app.yoniso.ui.SettingsScreen
@@ -29,7 +30,7 @@ import app.yoniso.ui.YonisoTheme
 import kotlinx.coroutines.launch
 
 /**
- * Hosts the three screens: first-launch onboarding, the main settings and the app list.
+ * Hosts the screens: first-launch onboarding, the main settings, the app list and About.
  * Settings are read from and written straight to [SettingsRepository]; the accessibility
  * service observes the same store.
  */
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
                 val onboardingDone by repository.onboardingDone.collectAsStateWithLifecycle(initialValue = null)
                 val settings by repository.settings.collectAsStateWithLifecycle(initialValue = null)
                 var choosingApps by rememberSaveable { mutableStateOf(false) }
+                var showingAbout by rememberSaveable { mutableStateOf(false) }
                 val scope = rememberCoroutineScope()
 
                 val loadedSettings = settings
@@ -71,6 +73,8 @@ class MainActivity : ComponentActivity() {
                         onBack = { choosingApps = false },
                     )
 
+                    showingAbout -> AboutScreen(onBack = { showingAbout = false })
+
                     else -> SettingsScreen(
                         settings = loadedSettings,
                         serviceEnabled = serviceEnabled,
@@ -79,6 +83,7 @@ class MainActivity : ComponentActivity() {
                         onPauseDurationChange = { scope.launch { repository.setPauseDuration(it) } },
                         onCooldownDurationChange = { scope.launch { repository.setCooldownDuration(it) } },
                         onOpenAccessibilitySettings = ::openAccessibilitySettings,
+                        onAbout = { showingAbout = true },
                     )
                 }
             }

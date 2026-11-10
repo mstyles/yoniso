@@ -52,6 +52,7 @@ fun SettingsScreen(
     onPauseDurationChange: (PauseDuration) -> Unit,
     onCooldownDurationChange: (CooldownDuration) -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
+    onAbout: () -> Unit,
 ) {
     Surface(Modifier.fillMaxSize()) {
         Column(
@@ -126,12 +127,15 @@ fun SettingsScreen(
             HorizontalDivider()
 
             val uriHandler = LocalUriHandler.current
-            TextButton(
-                onClick = {
-                    // Throws if no browser is installed; there is nothing more useful to do then.
-                    runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) }
-                },
-            ) { Text("Privacy policy") }
+            Row {
+                TextButton(onClick = onAbout) { Text("About") }
+                TextButton(
+                    onClick = {
+                        // Throws if no browser is installed; there is nothing more useful to do then.
+                        runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) }
+                    },
+                ) { Text("Privacy policy") }
+            }
         }
     }
 }
