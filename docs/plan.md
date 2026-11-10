@@ -27,7 +27,7 @@
 - A pause triggers only when the foreground package **changes**. Later events from the same package are duplicates, so this already stops Continue from retriggering.
 - The overlay is a `TYPE_ACCESSIBILITY_OVERLAY` window (no `SYSTEM_ALERT_WINDOW` needed). It is focusable and touchable, so it takes taps and Back. A `ComposeView` needs `OverlayLifecycleOwner` set as its view-tree lifecycle and saved-state owner.
 - The overlay is hidden on: any foreground change, `ACTION_SCREEN_OFF`, `onUnbind`, and `onDestroy`. `hide()` is safe to call when nothing is showing.
-- Exit hides the overlay, then `performGlobalAction(GLOBAL_ACTION_HOME)`.
+- Exit hides the overlay, then `performGlobalAction(GLOBAL_ACTION_HOME)`. (Later reversed: Exit now goes home first and keeps the overlay up through the home transition, about 650ms scaled by `TRANSITION_ANIMATION_SCALE`, so the paused app never shows. See `PauseAction.ExitToHome`.)
 - The target is hardcoded as `TARGET_PACKAGE = "com.android.chrome"` in `YonisoAccessibilityService`, and the pause is a hardcoded 5s countdown in `PauseOverlay`.
 - Known behaviour: on screen off, `foregroundPackage` is reset, so unlocking back into the target app pauses again. The Phase 2 cooldown suppresses this.
 
@@ -49,7 +49,7 @@
 5. **App switching:** if the foreground changes mid-pause, hide the overlay, then evaluate the new package. Only one overlay ever exists.
 6. **Timer:** runs in the service (coroutine/Handler), not in an Activity. The pause length is a setting: 5 / 10 / 15s, default 10.
 7. **Breathing animation:** a slow expanding/contracting circle. If `Settings.Global.ANIMATOR_DURATION_SCALE == 0` (reduced motion), show a static indicator instead. No flashing.
-8. **Copy:** "Take a breath." / "Notice this moment." during the pause; "Continue mindfully?" afterwards; buttons Continue / Exit. No guilt-inducing language.
+8. **Copy:** "Take a breath." / "Notice this moment." during the pause; afterwards three buttons: "Continue mindfully", "Listen to a bell", "Exit" (changed from a "Continue mindfully?" heading with Continue / Exit). No guilt-inducing language.
 9. **Unit tests (JUnit):**
    - Cooldown expiry and the clock going backwards.
    - Duplicate events.

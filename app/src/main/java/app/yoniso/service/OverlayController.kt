@@ -2,6 +2,8 @@ package app.yoniso.service
 
 import android.content.Context
 import android.graphics.PixelFormat
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
@@ -30,17 +32,35 @@ internal class OverlayController(private val context: Context) {
         it.restoreIfInterrupted()
     }
 
-    /** Whether the current overlay shows Continue / Exit. Reset for each new overlay. */
+    private val bell = PauseBell(context)
+    private val handler = Handler(Looper.getMainLooper())
+    private val deferredHide = Runnable { hide() }
+
+    /** The overlay is staying up only to cover the home transition after Exit; it is about to go. */
+    private var leaving = false
+
+    /** Whether the current overlay shows the choice. Reset for each new overlay. */
     private var showChoice by mutableStateOf(false)
+
+    /** Whether the bell asked for from the choice is still ringing. */
+    private var bellRinging by mutableStateOf(false)
+
+    /** Whether the bell has been asked for during the current overlay, which shows its verse. */
+    private var showBellVerse by mutableStateOf(false)
 
     /**
      * Adds the overlay with the breathing pause. Returns true if the overlay is showing
      * (including if it already was), false if the window could not be added.
      */
     fun show(onContinue: () -> Unit, onExit: () -> Unit): Boolean {
-        if (view != null) return true
+        if (view != null) {
+            if (!leaving) return true
+            // A new pause while the last one is still covering its exit: finish the exit now.
+            hide()
+        }
 
         showChoice = false
+        showBellVerse = false
         val reducedMotion = isReducedMotion()
         val owner = OverlayLifecycleOwner().also { it.start() }
         val composeView = ComposeView(context).apply {
@@ -50,8 +70,11 @@ internal class OverlayController(private val context: Context) {
             setContent {
                 PauseOverlay(
                     showChoice = showChoice,
+                    bellRinging = bellRinging,
+                    showBellVerse = showBellVerse,
                     reducedMotion = reducedMotion,
                     onContinue = onContinue,
+                    onListenToBell = ::ringBell,
                     onExit = onExit,
                 )
             }
@@ -84,18 +107,41 @@ internal class OverlayController(private val context: Context) {
         }
     }
 
-    /** Switches the showing overlay from the pause to Continue / Exit. */
+    /** Switches the showing overlay from the pause to the choice. */
     fun showChoice() {
         if (view != null) showChoice = true
+    }
+
+    private fun ringBell() {
+        if (view == null || leaving || bellRinging) return
+        bellRinging = true
+        showBellVerse = true
+        bell.play(onFinished = { bellRinging = false })
     }
 
     /** Animations are switched off system-wide (the closest Android has to "reduce motion"). */
     private fun isReducedMotion(): Boolean =
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
 
+    /**
+     * Removes the overlay once the home transition that has just been started is over, so the app
+     * underneath never shows during it. The bell stops at once. [hide] still removes it immediately.
+     */
+    fun hideAfterHomeTransition() {
+        if (view == null || leaving) return
+        leaving = true
+        bell.stop()
+        val scale = Settings.Global.getFloat(context.contentResolver, Settings.Global.TRANSITION_ANIMATION_SCALE, 1f)
+        handler.postDelayed(deferredHide, (HOME_TRANSITION_MILLIS * scale).toLong() + SETTLE_MILLIS)
+    }
+
     fun hide() {
+        handler.removeCallbacks(deferredHide)
+        leaving = false
         val current = view ?: return
         view = null
+        // The bell belongs to the pause: leaving it (Continue, Exit or switching away) cuts it short.
+        bell.stop()
         audio.release()
         try {
             windowManager.removeViewImmediate(current)
@@ -108,5 +154,11 @@ internal class OverlayController(private val context: Context) {
 
     private companion object {
         const val TAG = "Yoniso"
+
+        /** Roughly how long Android's go-home animation runs at normal animation speed. */
+        const val HOME_TRANSITION_MILLIS = 500L
+
+        /** Extra time for the home screen to draw its first frame, also used with animations off. */
+        const val SETTLE_MILLIS = 150L
     }
 }

@@ -1,6 +1,7 @@
 package app.yoniso.service
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.Animatable
@@ -19,7 +20,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +47,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
@@ -98,8 +100,12 @@ private const val FADE_MILLIS = 600
 @Composable
 internal fun PauseOverlay(
     showChoice: Boolean,
+    bellRinging: Boolean,
+    /** Once the bell has been asked for, its verse stays for the rest of this pause. */
+    showBellVerse: Boolean,
     reducedMotion: Boolean,
     onContinue: () -> Unit,
+    onListenToBell: () -> Unit,
     onExit: () -> Unit,
 ) {
     val colors = if (isSystemInDarkTheme()) DarkOverlay else LightOverlay
@@ -139,13 +145,17 @@ internal fun PauseOverlay(
                     // A fixed minimum height keeps the circle still when the text changes.
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 140.dp)
+                        .heightIn(min = 260.dp)
                         // Read out when the pause gives way to the choice.
                         .semantics { liveRegion = LiveRegionMode.Polite },
                     contentAlignment = Alignment.TopCenter,
                     label = "pauseToChoice",
                 ) { choice ->
-                    if (choice) Choice(colors, onContinue, onExit) else Breathe(colors)
+                    if (choice) {
+                        Choice(colors, bellRinging, showBellVerse, reducedMotion, onContinue, onListenToBell, onExit)
+                    } else {
+                        Breathe(colors)
+                    }
                 }
             }
         }
@@ -172,28 +182,40 @@ private fun Breathe(colors: OverlayColors) {
 }
 
 @Composable
-private fun Choice(colors: OverlayColors, onContinue: () -> Unit, onExit: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            "Continue mindfully?",
-            style = MaterialTheme.typography.headlineMedium,
-            color = colors.text,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(32.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            OutlinedButton(
-                onClick = onExit,
-                border = BorderStroke(1.dp, colors.outline),
-            ) { Text("Exit", color = colors.accent) }
-            Button(
-                onClick = onContinue,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.accent,
-                    contentColor = colors.onAccent,
-                ),
-            ) { Text("Continue") }
-        }
+private fun Choice(
+    colors: OverlayColors,
+    bellRinging: Boolean,
+    showBellVerse: Boolean,
+    reducedMotion: Boolean,
+    onContinue: () -> Unit,
+    onListenToBell: () -> Unit,
+    onExit: () -> Unit,
+) {
+    Column(
+        Modifier.widthIn(max = 320.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        BellVerse(colors, visible = showBellVerse, reducedMotion = reducedMotion)
+        Button(
+            onClick = onContinue,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.accent,
+                contentColor = colors.onAccent,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Continue mindfully") }
+        OutlinedButton(
+            onClick = onListenToBell,
+            // Disabled while it rings, so a second tap doesn't restart it.
+            enabled = !bellRinging,
+            border = BorderStroke(1.dp, colors.outline),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Listen to a bell", color = if (bellRinging) colors.secondaryText else colors.accent) }
+        OutlinedButton(
+            onClick = onExit,
+            border = BorderStroke(1.dp, colors.outline),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Exit", color = colors.accent) }
     }
 }
 
@@ -296,6 +318,31 @@ private fun BreathingCircle(
         } else {
             drawCircle(colors.accent, radius * 1.28f, alpha = 0.35f, style = Stroke(2.dp.toPx()))
             drawCircle(colors.accent, radius * 1.55f, alpha = 0.18f, style = Stroke(2.dp.toPx()))
+        }
+    }
+}
+
+/** The verse that goes with the bell. Its space is always kept, so the buttons don't move when it appears. */
+@Composable
+private fun BellVerse(colors: OverlayColors, visible: Boolean, reducedMotion: Boolean) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = if (reducedMotion) EnterTransition.None else fadeIn(tween(FADE_MILLIS * 2)),
+        ) {
+            Text(
+                "Listen, listen, this wonderful sound brings me back to my true home",
+                style = MaterialTheme.typography.bodyLarge,
+                fontStyle = FontStyle.Italic,
+                color = colors.text,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
         }
     }
 }

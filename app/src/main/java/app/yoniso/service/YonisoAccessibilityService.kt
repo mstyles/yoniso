@@ -157,7 +157,10 @@ class YonisoAccessibilityService : AccessibilityService() {
             }
             PauseAction.ShowChoice -> overlay.showChoice()
             PauseAction.HideOverlay -> overlay.hide()
-            PauseAction.GoHome -> performGlobalAction(GLOBAL_ACTION_HOME)
+            PauseAction.ExitToHome -> {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                overlay.hideAfterHomeTransition()
+            }
             is PauseAction.StartTimer -> {
                 handler.removeCallbacks(timerFinished)
                 handler.postDelayed(timerFinished, action.millis)

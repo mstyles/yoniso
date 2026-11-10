@@ -8,7 +8,8 @@ import android.util.Log
 import androidx.core.content.edit
 
 /**
- * Keeps the app underneath quiet while the pause is showing. Yoniso plays no sound itself.
+ * Keeps the app underneath quiet while the pause is showing. The only sound Yoniso makes is the
+ * optional bell ([PauseBell]), which plays on a stream this class leaves alone.
  *
  * 1. It holds temporary audio focus, the standard signal that something else needs the
  *    speaker for a moment. Apps that honour it (most media apps) pause and later resume.

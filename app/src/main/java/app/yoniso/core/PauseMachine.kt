@@ -48,7 +48,12 @@ sealed interface PauseAction {
     /** Switch the overlay from the breathing pause to Continue / Exit. */
     data object ShowChoice : PauseAction
     data object HideOverlay : PauseAction
-    data object GoHome : PauseAction
+
+    /**
+     * Go to the home screen, keeping the overlay on top until the home transition has finished,
+     * then remove it. Removing it first would show the paused app while the home animation runs.
+     */
+    data object ExitToHome : PauseAction
 
     /** Report [PauseEvent.TimerFinished] after [millis]. */
     data class StartTimer(val millis: Long) : PauseAction
@@ -178,7 +183,7 @@ class PauseMachine(
     private fun onExit(): List<PauseAction> {
         if (state != PauseState.AWAITING_CHOICE) return emptyList()
         toIdle()
-        return listOf(PauseAction.HideOverlay, PauseAction.GoHome)
+        return listOf(PauseAction.ExitToHome)
     }
 
     private fun onSettingsChanged(newSettings: PauseSettings): List<PauseAction> {

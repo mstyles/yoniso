@@ -1,7 +1,7 @@
 package app.yoniso.core
 
 import app.yoniso.core.PauseAction.CancelTimer
-import app.yoniso.core.PauseAction.GoHome
+import app.yoniso.core.PauseAction.ExitToHome
 import app.yoniso.core.PauseAction.HideOverlay
 import app.yoniso.core.PauseAction.SaveCooldown
 import app.yoniso.core.PauseAction.ShowChoice
@@ -80,7 +80,7 @@ class PauseMachineTest {
     fun `exit hides the overlay and goes home`() {
         val m = machine()
         m.pauseUntilChoice(A)
-        assertEquals(listOf(HideOverlay, GoHome), m.handle(Exit))
+        assertEquals(listOf(ExitToHome), m.handle(Exit))
         assertEquals(PauseState.IDLE, m.state)
     }
 
