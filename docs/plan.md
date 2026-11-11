@@ -9,6 +9,8 @@
 - [x] **Phase 3: app UI and persistence.** 52 unit tests pass. Tested on the emulator: onboarding, settings, app list and search, exclusions, settings reaching the service live, and pausing on return from Yoniso. Tested on the Pixel 8 with A Dance of Fire and Ice, opened from the home screen and from the app drawer: every pause ran its full length.
 - [x] **Phase 4: testing and polish.** Commit `3221b11`. Tested on the emulator: rapid switching, lock/unlock, service restart, revocation mid-pause and incoming calls. The call fix came from that testing. Tested on the Pixel 8: onboarding consent, a real incoming call during a pause, PIN lock/unlock, rapid switching, dark mode, and a cooldown surviving a reboot. Remaining before Play distribution: see the README, "Before publishing on Google Play".
 
+Next feature: mindfulness bells, planned in [bells-plan.md](bells-plan.md).
+
 ## Project setup (done)
 
 - Single `app` module, package `app.yoniso`. minSdk 26, targetSdk 37 (raised from 36 after Phase 4), compileSdk 37.2 (current AndroidX libraries need 37).
