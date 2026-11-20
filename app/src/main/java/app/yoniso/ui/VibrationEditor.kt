@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -26,7 +27,6 @@ import app.yoniso.bells.BellVibrator
 import app.yoniso.core.PulseShape
 import app.yoniso.core.VibrationPattern
 import app.yoniso.core.VibrationPreset
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -126,8 +126,9 @@ private fun Details(pattern: VibrationPattern, amplitudeControl: Boolean, onChan
         onSelect = { onChange(pattern.copy(repeats = it)) },
     )
     val seconds = minOf(pattern.fullMillis, VibrationPattern.MAX_TOTAL_MILLIS) / 1000f
+    val locale = LocalConfiguration.current.locales[0]
     Text(
-        "Lasts ${String.format(Locale.getDefault(), "%.1f", seconds)} seconds." +
+        "Lasts ${String.format(locale, "%.1f", seconds)} seconds." +
             if (pattern.isCut) " Vibrations stop at 6 seconds, so the end is cut off." else "",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,

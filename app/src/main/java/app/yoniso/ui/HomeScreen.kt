@@ -70,7 +70,7 @@ fun HomeScreen(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 FeatureTile("Pause before apps", R.drawable.ic_pause_feature, pauseState, onPause, Modifier.weight(1f))
-                FeatureTile("Mindfulness bells", R.drawable.ic_bell_feature, bellsState, onBells, Modifier.weight(1f))
+                FeatureTile("Mindfulness bell", R.drawable.ic_bell_feature, bellsState, onBells, Modifier.weight(1f))
             }
             val uriHandler = LocalUriHandler.current
             Row {

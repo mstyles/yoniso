@@ -63,7 +63,7 @@ fun IntroScreen(onGetStarted: () -> Unit) {
             )
             Feature(
                 R.drawable.ic_bell_feature,
-                "Mindfulness bells",
+                "Mindfulness bell",
                 "A bell rings now and then through the day, as a reminder to stop and breathe.",
             )
 

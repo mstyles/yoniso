@@ -1,8 +1,8 @@
 # Yoniso
 
-An Android app that adds a short breathing pause before selected apps open. See [prd.md](prd.md).
+An Android app that adds a short breathing pause before selected apps open, and rings a mindfulness bell through the day. See [prd.md](prd.md).
 
-**Status:** MVP feature-complete (Phase 4: testing and polish). Not yet published. See [docs/plan.md](docs/plan.md).
+**Status:** Not yet published. The pause is feature-complete ([docs/plan.md](docs/plan.md)). The mindfulness bell is in its last phase: device testing and Play ([docs/bells-plan.md](docs/bells-plan.md)).
 
 ## Build and run
 
@@ -24,6 +24,16 @@ adb logcat -s Yoniso
 - The overlay is removed when another app comes to the front, the screen turns off, a phone call starts ringing, or the service is disabled or destroyed.
 - Decisions live in a pure state machine (`core/PauseMachine`) with unit tests (`./gradlew testDebugUnitTest`).
 
+### Mindfulness bell
+
+- Only the next bell is ever set, as one `AlarmManager` alarm. When it fires, `BellReceiver` sets the one after, then decides whether to ring. The times come from a pure, unit-tested `core/BellSchedule` (set times on the clock, or random gaps, within active hours and days, with snooze and DST handled).
+- The alarm is exact when the user allows "Alarms & reminders" (`SCHEDULE_EXACT_ALARM`), otherwise inexact. It is set again after a reboot, an app update, and a time or time zone change.
+- The bell plays from `BellService`, a short foreground service (`shortService` on Android 14+, no type before), on the alarm stream with audio focus that lets music duck. Vibration plays from the receiver.
+- A bell is skipped on silent, in Do Not Disturb, during a call and while a pause is showing. While media plays it vibrates only, rings or is skipped, as chosen. It rings in vibrate mode.
+- Custom bells are copied into app storage (`filesDir/bells`) through the system file picker, so no storage permission is needed.
+- A Quick Settings tile ("Bell") turns bells on and off and shows the next bell or the snooze.
+- Debug builds have `BellDebugReceiver` to drive bells over adb; see its doc comment.
+
 ## Platform limitations and assumptions
 
 - **Sideloaded apps (Android 13+):** Android blocks enabling accessibility for apps not installed from a store until the user allows it under *App info > ⋮ > Allow restricted settings*. The settings screen explains this.
@@ -35,6 +45,10 @@ adb logcat -s Yoniso
 - **Audio:** During a pause, Yoniso takes audio focus and mutes media, because many games ignore audio focus. Background music also pauses or mutes for the length of the pause. The media volume is restored afterwards, even if Yoniso was killed mid-pause.
 - **Popups:** A window that doesn't fill the screen (e.g. a Play Store or Play Games prompt) from an unselected app is not treated as leaving the app. A full-screen window from another package (e.g. a share sheet or the permission controller) is, and the cooldown stops this from causing repeated pauses.
 - **Reduced motion:** Android has no dedicated setting, so Yoniso treats *Remove animations* (animator duration scale 0) as reduced motion: the circle is still and nothing fades.
+- **Bells without "Alarms & reminders":** Android may deliver an inexact alarm late, and in Doze about once every 9 minutes at most. A late bell is skipped rather than rung late. Android only lets the bell's service start from an exact alarm, or while the accessibility service is on, so with neither, bells only vibrate.
+- **Bell loudness:** bells follow the alarm volume (scaled by the bell volume slider), because the notification stream is muted in vibrate mode.
+- **Vibration:** Android's own vibration settings (e.g. *Notification vibration* turned off; bells vibrate as notifications) can silence a bell's vibration. The strength and shape controls only show on phones with amplitude control.
+- **Battery managers and bells:** some manufacturers delay or drop alarms for apps in the background. Exempting Yoniso from battery optimisation helps.
 - **Another pause app:** Apps that also put up an overlay when an app opens (e.g. one sec) may stack their overlay with Yoniso's if both watch the same app.
 
 ## Before publishing on Google Play
@@ -49,6 +63,8 @@ Yoniso is not an accessibility tool, so it must not set `isAccessibilityTool`. P
   - Data types: none, not even "Installed apps" or "App interactions" (on-device only). The listing should then show "No data collected" and "No data shared with third parties".
   - Target audience: not children, so the Families policy doesn't apply.
   - Revisit this form, the declaration and PRIVACY.md if Yoniso ever gains the `INTERNET` permission, an analytics or crash-reporting SDK, or a cloud backup of its data.
+- **Foreground service declaration (to do in the Console):** `BellService` uses `shortService` on Android 14+ and no type before that. It deliberately doesn't use `mediaPlayback`, whose declaration video must show playback the user starts, which an alarm-started bell isn't. Play's pages don't say whether `shortService` needs a declaration; answer whatever the Console asks at upload. See "Phase 10: as built" in [docs/bells-plan.md](docs/bells-plan.md).
+- **Exact alarms:** Yoniso uses `SCHEDULE_EXACT_ALARM`, which the user grants, and not `USE_EXACT_ALARM`, which Play restricts to alarm-clock and calendar apps.
 - **targetSdk (done):** 37 (Android 17). Play currently requires 36 or higher. Android 17's background-audio hardening blocks audio focus and volume changes from background apps. Tested on a Pixel 8 (Android 17) targeting 37: while the pause shows, focus is granted and media is muted, then both are released, with no `AudioHardening` entries for Yoniso. Watch for this if the overlay or audio code changes.
 
 Sources: Play Console Help on [AccessibilityService API use](https://support.google.com/googleplay/android-developer/answer/10964491), [best practices for prominent disclosure](https://support.google.com/googleplay/android-developer/answer/11150561), the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311), and [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469).

@@ -1,10 +1,10 @@
 # Yoniso privacy policy
 
-**Effective date:** 6 November 2026
+**Effective date:** 20 November 2026
 
-Yoniso is an Android app that shows a short breathing pause when you open an app you have chosen. This policy explains what information Yoniso uses, and how.
+Yoniso is an Android app that shows a short breathing pause when you open an app you have chosen, and can ring a mindfulness bell through the day. This policy explains what information Yoniso uses, and how.
 
-**In short:** Yoniso uses only what it needs on your phone to show the pause. It has no internet access, so nothing it uses or stores ever leaves your device. There are no accounts, ads, analytics or tracking.
+**In short:** Yoniso uses only what it needs on your phone to show the pause and ring the bells. It has no internet access, so nothing it uses or stores ever leaves your device. There are no accounts, ads, analytics or tracking.
 
 Yoniso is developed by Matt Styles ("we").
 
@@ -38,7 +38,24 @@ So that a pause never covers an incoming call, Yoniso checks whether a call is r
 
 Yoniso does not read phone numbers, contacts or call history, and it does not record calls.
 
-While a pause is showing, Yoniso asks other apps to pause their sound and mutes the media volume, then restores it when the pause ends. It plays no sound and never uses the microphone.
+While a pause is showing, Yoniso asks other apps to pause their sound and mutes the media volume, then restores it when the pause ends. The only sound it plays is a bell, if you tap "Listen to a bell". It never uses the microphone.
+
+### Mindfulness bell
+
+If you turn on the bells, Yoniso sets an alarm with Android for the next bell. When it is due, Yoniso checks, at that moment only:
+
+- whether your phone is on silent or vibrate, and whether Do Not Disturb is on, so it can skip the bell;
+- whether a call is in progress (the audio mode, as above), so it never rings during one;
+- whether any music or video is playing, so it can vibrate instead, ring or skip, as you chose. It only learns that something is playing, not what or in which app;
+- whether a pause is showing.
+
+None of this is saved. The bell plays through the alarm sound, and a quiet notification with a Stop button shows while it rings. On Android 13 and later Yoniso asks to show notifications; bells still ring if you say no.
+
+Yoniso may also ask you to allow "Alarms & reminders", so bells ring on time. This only affects when Yoniso's own alarms go off.
+
+### Your own bell sounds
+
+If you add your own bell, you choose an audio file with Android's file picker. Yoniso can only see the file you pick, not your other files. It makes a copy in its own storage, checks that it plays and isn't too large or too long, and keeps the name you give it. The original file is not changed.
 
 ## What Yoniso stores
 
@@ -46,7 +63,9 @@ Everything Yoniso stores stays on your phone, in storage that only Yoniso can ac
 
 - your settings: whether Yoniso is on, which apps you selected (stored as package names), the pause length, the cooldown length, and whether you have seen the welcome screen;
 - for each selected app, the time its last pause was shown, so the cooldown works even after a restart. Times that no longer matter are deleted automatically;
-- a marker recording that Yoniso muted the media volume during a pause, so the volume can be restored if the app stops unexpectedly.
+- a marker recording that Yoniso muted the media volume during a pause, so the volume can be restored if the app stops unexpectedly;
+- your bell settings: whether bells are on, their timing, hours and days, the bell and its volume, the vibration, what happens while music plays, any snooze, and the time of the next bell;
+- copies of any bell sounds you added, with their names. Deleting a bell in Yoniso deletes its copy.
 
 Yoniso does not store a history of which apps you opened or when, beyond the last-pause time above.
 

@@ -1,4 +1,4 @@
-# Mindfulness bells: plan
+# Mindfulness bell: plan
 
 A bell that rings on its own through the day, at random or at set intervals, as a reminder to stop and breathe. The user can pick a bundled bell or upload their own, choose to vibrate instead (or as well), and shape the vibration.
 
@@ -53,7 +53,7 @@ Made while brainstorming on 2026-11-10.
   - Skip during a call (`AudioManager.mode != MODE_NORMAL`), reusing the idea behind `CallWatcher`.
   - While media is playing (`isMusicActive`), follow a setting: **vibrate only** (default), ring anyway, or skip.
   - Skip while a Yoniso pause is showing. The pause already is the reminder.
-- If it rings, the receiver starts a short **foreground service** (`BellService`, type `shortService` on Android 14+, `mediaPlayback` on 12–13, where `shortService` doesn't exist) that plays the bell and/or vibration and stops itself afterwards. A receiver alone only has about 10 seconds, and the bell lasts 22.
+- If it rings, the receiver starts a short **foreground service** (`BellService`, type `shortService` on Android 14+, and no type before that, where `shortService` doesn't exist) that plays the bell and/or vibration and stops itself afterwards. A receiver alone only has about 10 seconds, and the bell lasts 22.
   - Background start: an exact alarm exempts the app from Android 12+'s background foreground-service limits, and so does a bound accessibility service. **An inexact alarm with the accessibility service off has no exemption** (confirmed in Phase 5), so that case vibrates only.
   - The notification is quiet ("Mindfulness bell" with a Stop action) on its own low-importance channel. On Android 13+, without `POST_NOTIFICATIONS`, the service still runs; the notification only shows in the task manager.
   - Audio uses `USAGE_ALARM`, like the pause's "Listen to a bell". The notification stream would be muted in vibrate mode. The bell follows the alarm volume, with a bell volume slider (0.1 to 1.0 of that stream). It takes `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`, so music ducks rather than stops.
@@ -88,7 +88,7 @@ Made while brainstorming on 2026-11-10.
 
 ### UI
 
-- The home screen has a square tile per feature, "Pause before apps" and "Mindfulness bells", showing only an icon (the Yoniso ripple, a singing bowl), filled when on and outlined when off. Tapping a tile opens that feature's screen, where it is switched on and off (changed on 2026-11-20; the bells were first a row on the pause settings). The **Bells screen**:
+- The home screen has a square tile per feature, "Pause before apps" and "Mindfulness bell" (singular since 2026-11-20), showing only an icon (the Yoniso ripple, a singing bowl), filled when on and outlined when off. Tapping a tile opens that feature's screen, where it is switched on and off (changed on 2026-11-20; the bells were first a row on the pause settings). The **Bells screen**:
   - Master toggle and snooze ("Pause bells for 1 hour / until tomorrow").
   - Timing: interval or random chips, then the interval chips or a min/max range slider.
   - Active hours (two time pickers) and day chips.
@@ -109,7 +109,7 @@ New manifest entries:
 |---|---|---|
 | `RECEIVE_BOOT_COMPLETED` | Restore the next alarm after a reboot | Normal |
 | `VIBRATE` | Vibration | Normal |
-| `FOREGROUND_SERVICE` | Ring for the length of the bell | `shortService` needs no type permission. Check whether declaring `mediaPlayback` for 12–13 still triggers Play's foreground-service declaration; if so, consider `shortService` only, with no service before 14 (inexact needs accessibility there anyway) |
+| `FOREGROUND_SERVICE` | Ring for the length of the bell | `shortService` on 14+, which needs no type permission; no type before 14 (decided in Phase 10, see there) |
 | `POST_NOTIFICATIONS` | Show the ringing notification (13+) | Asked for when bells are first turned on; optional |
 | `SCHEDULE_EXACT_ALARM` | Ring on time, and ring with the accessibility service off | Strongly recommended, user-granted |
 
@@ -284,7 +284,10 @@ The prototype (`app/yoniso/proto/`, branch `bells-prototype`, not merged) schedu
 - **Snooze** (`core/BellSchedule`, unit tested): `SNOOZE_HOUR`, and `snoozeUntilTomorrow(now, hours, zone)`, which is midnight after today. Inside an active window, "today" is the day the window starts on, and a window that crosses midnight is snoozed to its end (at 23:00 or 01:00 in 22:00–02:00, until 02:00).
 - **Bells screen:** when bells are on, "Snooze 1 hour" and "Snooze until tomorrow" under the switch, or "End snooze" while snoozed. The status line reads "Snoozed. Next bell tomorrow around 8:26 AM."
 - `BellAlarms.update(context, transform)` saves, reschedules and refreshes the tile; `MainActivity` and the tile both use it. `BellAlarms.setEnabled` clears any snooze, so bells turned off and on again start afresh.
-- **Quick Settings tile** (`bells/BellTileService`, label "Bells", the bell feature icon, `TOGGLEABLE_TILE` so TalkBack reads it as a switch). A tap turns bells on or off. The subtitle (Android 10+) is "Off", "Snoozed", "Next 10:15" (set times) or "Around 10:09 AM" (random), or "On" when the next bell isn't today. It reads the stores while the panel is open. A long press opens the bells screen (`QS_TILE_PREFERENCES` on `MainActivity`). Turning bells on from the tile asks for no permissions; the bells screen shows what's missing.
+- **Quick Settings tile** (`bells/BellTileService`, label "Bell" (was "Bells"), the bell feature icon, `TOGGLEABLE_TILE` so TalkBack reads it as a switch). A tap turns bells on or off. The subtitle (Android 10+) is "Off", "Snoozed", "Next 10:15" (set times) or "Around 10:09 AM" (random), or "On" when the next bell isn't today. It reads the stores while the panel is open. A long press opens the bells screen (`QS_TILE_PREFERENCES` on `MainActivity`). Turning bells on from the tile asks for no permissions; the bells screen shows what's missing.
+- **No `mediaPlayback`** (Play's foreground-service rules, read 2026-11-20): an app targeting 14+ must declare each foreground-service type it uses in Play Console, with a video. For `mediaPlayback` the video must show "a user starting video or audio playback", and "Playback must be user-initiated". A bell started by an alarm isn't, so it risked rejection. Types are only required from Android 14, so `BellService` now has no type on 10–13 and `FOREGROUND_SERVICE_MEDIA_PLAYBACK` is gone. The manifest declares `shortService` only. Play's pages don't say whether `shortService` needs a declaration; check what Play Console asks for at upload. (Also noted: apps targeting 15+ can't start a `mediaPlayback` service from `BOOT_COMPLETED`; Yoniso doesn't.)
+- Tested: a bell from an exact alarm in the background rang on the API 36 emulator (type `shortService`) and on a new API 33 emulator (`yoniso_api33`, no type).
+- Fixed a lint error from Phase 9: the vibration editor read the locale in a way Compose can't observe.
 - Emulator: tile added with `cmd statusbar add-tile`, tap on and off, the subtitle following the next ring, a long press opening the bells screen, snooze for an hour (next bell moved past it), end snooze, snooze until tomorrow (next bell tomorrow at 8:26), "Snoozed" on the tile.
 
 ## Open questions

@@ -21,8 +21,9 @@ import app.yoniso.bells.BellAlarms.debugLog
  * Plays one mindfulness bell as a short foreground service, then stops. A receiver only has about
  * 10 seconds, and the bell lasts about 22.
  *
- * - Type `shortService` on Android 14+ (no extra permission, about a 3-minute limit), and
- *   `mediaPlayback` on 10–13, where `shortService` doesn't exist.
+ * - Type `shortService` on Android 14+ (no extra permission, about a 3-minute limit). Before 14 it
+ *   has no type: `shortService` doesn't exist there and none is needed. `mediaPlayback` is avoided
+ *   because Play's declaration for it requires playback the user starts, which a bell isn't.
  * - Its notification is quiet, on a low-importance channel, with a Stop action. Without the
  *   notification permission (Android 13+) the service still runs; the notification just doesn't show.
  * - It takes transient audio focus that lets other audio duck, so music dips rather than stops.
@@ -93,11 +94,8 @@ class BellService : Service() {
         }
     }
 
-    private fun foregroundType(): Int = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-        else -> 0
-    }
+    private fun foregroundType(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE else 0
 
     private fun notification() = NotificationCompat.Builder(this, ensureChannel())
         .setSmallIcon(R.drawable.ic_launcher_monochrome)

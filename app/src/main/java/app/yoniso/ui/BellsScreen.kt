@@ -86,7 +86,7 @@ internal fun BellsScreen(
     onAllowExactAlarms: () -> Unit,
     onBack: () -> Unit,
 ) {
-    SubScreen("Mindfulness bells", onBack) {
+    SubScreen("Mindfulness bell", onBack) {
         Column(
             Modifier
                 .verticalScroll(rememberScrollState())

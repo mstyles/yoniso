@@ -22,7 +22,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * The "Bells" Quick Settings tile. A tap turns bells on or off; the subtitle (Android 10+) says when
+ * The "Bell" Quick Settings tile. A tap turns bells on or off; the subtitle (Android 10+) says when
  * the next bell is due, or that bells are snoozed. A long press opens the bells screen.
  *
  * Turning bells on here doesn't ask for notifications or exact alarms, which a tile can't do; the
