@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.yoniso.bells.BellAlarms
 import app.yoniso.data.InstalledApps
 import app.yoniso.data.SettingsRepository
 import app.yoniso.service.YonisoAccessibilityService
@@ -43,6 +44,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         val repository = SettingsRepository(this)
+        // A safety net in case the bell's alarm was lost (e.g. exact alarms were revoked).
+        if (savedInstanceState == null) BellAlarms.restoreAsync(this)
         val installedApps = InstalledApps(this)
 
         setContent {

@@ -13,6 +13,8 @@ import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
 import app.yoniso.BuildConfig
 import app.yoniso.MainActivity
+import app.yoniso.bells.BellAlarms
+import app.yoniso.bells.RunningState
 import app.yoniso.core.Clock
 import app.yoniso.core.PauseAction
 import app.yoniso.core.PauseEvent
@@ -81,6 +83,10 @@ class YonisoAccessibilityService : AccessibilityService() {
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         receiverRegistered = true
+        RunningState.accessibilityConnected = true
+        // Exact alarms are cancelled when that access is revoked, which also stops the process.
+        // The service reconnecting is a chance to set the bell's alarm again.
+        BellAlarms.restoreAsync(this)
         debugLog { "Service connected; ignoring $ignored" }
     }
 
@@ -171,6 +177,7 @@ class YonisoAccessibilityService : AccessibilityService() {
     }
 
     private fun cleanUp() {
+        RunningState.accessibilityConnected = false
         dispatch(PauseEvent.ServiceStopped)
         scope?.cancel()
         scope = null

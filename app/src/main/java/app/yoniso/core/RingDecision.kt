@@ -1,5 +1,6 @@
 package app.yoniso.core
 
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 
@@ -37,13 +38,22 @@ sealed interface RingDecision {
  * them itself. Vibrate mode still rings: many people keep their phone on vibrate only to silence
  * calls. When the bell can't play (media playing with [DuringMedia.VIBRATE], or no way to start
  * the bell service), it vibrates instead, so the reminder isn't lost.
+ *
+ * [lateTolerance] is how late the alarm may fire and still ring (see [BellSchedule.lateTolerance]).
  */
 object RingDecider {
-    fun decide(due: Instant, now: Instant, settings: BellSettings, zone: ZoneId, phone: PhoneState): RingDecision {
+    fun decide(
+        due: Instant,
+        now: Instant,
+        settings: BellSettings,
+        zone: ZoneId,
+        phone: PhoneState,
+        lateTolerance: Duration = BellSchedule.LATE_TOLERANCE,
+    ): RingDecision {
         val s = settings.sanitized()
         val skip = when {
             !s.enabled -> SkipReason.DISABLED
-            BellSchedule.isLate(due, now) -> SkipReason.LATE
+            BellSchedule.isLate(due, now, lateTolerance) -> SkipReason.LATE
             s.snoozedUntil != null && now < s.snoozedUntil -> SkipReason.SNOOZED
             !BellSchedule.isActive(due, s.activeHours, zone) -> SkipReason.OUTSIDE_HOURS
             phone.doNotDisturb -> SkipReason.DO_NOT_DISTURB

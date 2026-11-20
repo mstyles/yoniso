@@ -2,6 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Mindfulness bells: see docs/bells-plan.md, "Permissions and Play". -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 10–13 only; 14+ uses shortService, which needs no type permission. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!--
       Package visibility: only the intents Yoniso resolves, not QUERY_ALL_PACKAGES.
       Launcher activities list the apps to choose from; home and Settings are found
@@ -58,5 +67,28 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+
+        <!-- The bell's alarm. Only AlarmManager sends to it, through a PendingIntent. -->
+        <receiver
+            android:name=".bells.BellReceiver"
+            android:exported="false" />
+
+        <!-- System broadcasts after which the bell's alarm is set again. -->
+        <receiver
+            android:name=".bells.BellRescheduleReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".bells.BellService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback|shortService" />
     </application>
 </manifest>

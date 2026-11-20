@@ -18,8 +18,11 @@ import kotlin.random.Random
  * - A ring time in a repeated hour (fall back) uses the earlier offset, so it rings once.
  */
 object BellSchedule {
-    /** An alarm later than this (device off, deep Doze) is skipped rather than rung. */
+    /** An exact alarm later than this (device off, deep Doze) is skipped rather than rung. */
     val LATE_TOLERANCE: Duration = Duration.ofMinutes(2)
+
+    /** The most an inexact alarm may be late and still ring. */
+    val MAX_INEXACT_TOLERANCE: Duration = Duration.ofHours(1)
 
     /**
      * The first ring strictly after [after], or null if bells are off or no day is active.
@@ -41,7 +44,21 @@ object BellSchedule {
         windowsAround(at, hours, zone).any { at in it.startInstant..it.endInstant }
 
     /** Whether an alarm due at [due] and firing at [now] is too late to ring. */
-    fun isLate(due: Instant, now: Instant): Boolean = Duration.between(due, now) > LATE_TOLERANCE
+    fun isLate(due: Instant, now: Instant, tolerance: Duration = LATE_TOLERANCE): Boolean =
+        Duration.between(due, now) > tolerance
+
+    /**
+     * How late an alarm set at [setAt] for [due] may fire and still ring.
+     *
+     * An exact alarm should fire on time, so [LATE_TOLERANCE]. Android may deliver an inexact alarm
+     * up to three quarters of its lead time late, as normal batching, so that much is allowed on top
+     * (up to [MAX_INEXACT_TOLERANCE]). Otherwise most inexact bells would be skipped as late.
+     */
+    fun lateTolerance(setAt: Instant, due: Instant, exact: Boolean): Duration {
+        if (exact) return LATE_TOLERANCE
+        val lead = Duration.between(setAt, due).coerceAtLeast(Duration.ZERO)
+        return minOf(LATE_TOLERANCE + lead.multipliedBy(3).dividedBy(4), MAX_INEXACT_TOLERANCE)
+    }
 
     private fun nextAligned(from: Instant, minutes: Int, windows: List<Window>, zone: ZoneId): Instant? {
         for (window in windows) {

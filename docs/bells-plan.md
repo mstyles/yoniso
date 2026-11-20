@@ -8,7 +8,7 @@ This extends Yoniso beyond the PRD, whose principles still apply: mindfulness ov
 
 - [x] **Phase 5: platform prototype.** Done 2026-11-10 on the emulator (API 36) and the Pixel 8 (Android 17). See "Phase 5: results". A bell can play from the background, but a non-exact alarm can't start it while the accessibility service is off.
 - [x] **Phase 6: schedule core and tests.** 59 new unit tests (114 in all) pass. See "Phase 6: as built".
-- [ ] **Phase 7: ringing in the background.** Alarms, the ring service, reboots.
+- [x] **Phase 7: ringing in the background.** 117 unit tests pass. Tested on the emulator (API 36), driven over adb. See "Phase 7: as built".
 - [ ] **Phase 8: settings UI.** Bells screen, bundled bells, shared bell setting.
 - [ ] **Phase 9: custom bells and vibration.** Upload, vibration editor, previews.
 - [ ] **Phase 10: extras, testing and Play.** Tile, snooze, device testing, disclosures.
@@ -84,7 +84,7 @@ Made while brainstorming on 2026-11-10.
 - A new DataStore file, `bells`, kept separate from `settings` so recording the next ring doesn't re-emit everything:
   - enabled, mode (interval / random), interval minutes, random min/max, active start/end, active days, output (bell / vibrate / both), bell ID, bell volume, vibration pattern parameters, during-media behaviour, snoozed until, next ring at.
   - Custom bell names and file names (a small JSON string or a string set).
-- The shared bell ID is read by `PauseBell` too.
+- The shared bell ID is read by the pause's "Listen to a bell" too.
 
 ### UI
 
@@ -179,6 +179,38 @@ The prototype (`app/yoniso/proto/`, branch `bells-prototype`, not merged) schedu
 - `BellAlarms` (schedule/cancel, exact or inexact), `BellReceiver`, `BellService`, the boot/time receivers, the `bells` DataStore.
 - `PauseBell` and `BellService` share a small `BellPlayer` that resolves the bell ID to a resource or file, with fallback.
 - No UI yet: debug defaults (or an adb broadcast) to test on the emulator and Pixel.
+
+### Phase 7: as built
+
+- New package `bells/` for the Android side. `core/` stays pure.
+- `data/BellRepository`: the `bells` DataStore. Every `BellSettings` field as its own key (times as minutes since midnight, enums by name, days as a set of names), plus `next_ring_at`. Values are sanitized when read and written; unknown names fall back to the defaults. `update { }` changes the settings, and the caller then calls `BellAlarms.reschedule()`.
+- `bells/BellAlarms`:
+  - `reschedule(after)` computes the next ring and sets it, or cancels the alarm if there is none. Used after a settings change, a clock or time zone change, and each bell.
+  - `restore()` sets the stored ring again if it's still ahead, so a random bell already chosen doesn't move; otherwise it reschedules. Used on boot, app update, exact alarms being allowed, the accessibility service connecting and `MainActivity` starting. The last two cover exact alarms being revoked, which cancels them.
+  - One `PendingIntent` (request code 0), so each alarm replaces the last. Its extras are the due time, when it was set and whether it is exact. A `Mutex` keeps scheduling one at a time.
+- **Late tolerance for inexact alarms** (a change to Phase 6): Android may deliver an inexact alarm up to 75% of its lead time late (confirmed on the emulator: `window=+1m21s` for a 1m48s lead). With a fixed 2 minutes, most inexact bells would have been skipped. `BellSchedule.lateTolerance(setAt, due, exact)`: 2 minutes for exact alarms, and 2 minutes plus 75% of the lead for inexact ones, at most an hour. `RingDecider.decide` takes it as a parameter. A late inexact bell is still checked against active hours using its due time, so it can ring a little after the window ends.
+- `bells/BellReceiver` sets the next alarm first, then reads the phone state and calls `RingDecider`. Vibration plays from the receiver. Sound starts `BellService`. If Android refuses the start, it vibrates instead.
+- `bells/RunningState`: process-wide flags for "accessibility service connected" (so `canPlaySound` = exact alarm or connected) and "pause showing" (set by `OverlayController`).
+- `bells/BellService`: `shortService` on 14+, `mediaPlayback` on 10–13, no type before that. A quiet, low-importance "Mindfulness bells" channel, with a Stop action. Transient may-duck focus. It stops when the bell ends. A new bell during a ring replaces it without stopping the service. `onTimeout` stops it. Declares `FOREGROUND_SERVICE_MEDIA_PLAYBACK` for 10–13; the Play declaration question is still for Phase 10.
+- `bells/BellPlayer` replaces `PauseBell`: `BundledBell` maps IDs to raw resources, and an unknown bell or a load or playback failure falls back to the Plum Village bell. Optional volume. The pause still plays the default bell until Phase 8.
+- `bells/BellVibrator`: `VibratorManager` / `Vibrator`, notification usage (`VibrationAttributes` on 13+, `AudioAttributes` before).
+- `bells/BellRescheduleReceiver`: boot, app update, exact-alarm grant (restore); time set, time zone (reschedule).
+- **Debug builds only:** `BellDebugReceiver` (in `src/debug`, guarded by the `DUMP` permission, which the adb shell holds): `adb shell am broadcast -n app.yoniso/.bells.BellDebugReceiver --es cmd set|test|status ...`. Its doc comment lists the extras. Results in `adb logcat -s Yoniso`.
+- Emulator results:
+
+| Case | Result |
+|---|---|
+| Inexact, accessibility off | Fired 38s late, vibrated only (`canPlaySound=false`) |
+| Inexact, accessibility on | Fired 82s late (within its window), bell played through `shortService` |
+| Exact, accessibility off | Fired 4ms late, bell played |
+| Service | Quiet notification with Stop. Stops itself and releases focus when the bell ends (22s). Stop ends it at once. Without notification permission it still rings, with no notification |
+| Exact alarms granted | The broadcast re-set the same ring as exact |
+| DND / silent / vibrate mode | Skip / skip / rings |
+| Reboot | Same ring time restored (to the millisecond) |
+| Time zone change | New ring worked out |
+| Bells turned off | Alarm cancelled |
+
+- Not yet tested on a device: the Pixel 8, a pause showing, media playing, a call, Doze. These are in the Phase 10 device tests.
 
 ### Phase 8: settings UI
 

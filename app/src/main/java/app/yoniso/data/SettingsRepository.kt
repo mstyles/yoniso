@@ -21,6 +21,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
+/** The stored preferences, or empty ones (so every value falls back to its default) if the file can't be read. */
+internal fun DataStore<Preferences>.safeData(): Flow<Preferences> = data.catch { e ->
+    if (e is IOException) emit(emptyPreferences()) else throw e
+}
+
 // One instance of each per process. The app UI and the accessibility service share the process.
 private val Context.settingsStore by preferencesDataStore(name = "settings")
 
@@ -92,10 +97,6 @@ class SettingsRepository(context: Context) {
         val PAUSE_SECONDS = intPreferencesKey("pause_seconds")
         val COOLDOWN_MINUTES = intPreferencesKey("cooldown_minutes")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
-
-        fun DataStore<Preferences>.safeData(): Flow<Preferences> = data.catch { e ->
-            if (e is IOException) emit(emptyPreferences()) else throw e
-        }
 
         fun Preferences.timestamps(): Map<String, Long> =
             asMap().mapNotNull { (key, value) -> (value as? Long)?.let { key.name to it } }.toMap()

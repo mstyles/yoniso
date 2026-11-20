@@ -85,6 +85,14 @@ class RingDeciderTest {
     }
 
     @Test
+    fun `a longer tolerance lets a late inexact alarm ring`() {
+        val tolerance = java.time.Duration.ofMinutes(17)
+        val late = due.plusSeconds(16 * 60)
+        assertEquals(ring(sound = true, vibrate = true), RingDecider.decide(due, late, on, zone, PhoneState(), tolerance))
+        assertEquals(skip(SkipReason.LATE), RingDecider.decide(due, late.plusSeconds(120), on, zone, PhoneState(), tolerance))
+    }
+
+    @Test
     fun `snoozed skips until the snooze ends`() {
         assertEquals(skip(SkipReason.SNOOZED), decide(on.copy(snoozedUntil = due.plusSeconds(60))))
         assertEquals(ring(sound = true, vibrate = true), decide(on.copy(snoozedUntil = due)))

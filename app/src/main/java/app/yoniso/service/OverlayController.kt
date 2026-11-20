@@ -14,6 +14,9 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import app.yoniso.bells.BellPlayer
+import app.yoniso.bells.RunningState
+import app.yoniso.core.BellSettings
 
 /**
  * Owns the single mindfulness overlay window. Only one overlay exists at a time,
@@ -32,7 +35,7 @@ internal class OverlayController(private val context: Context) {
         it.restoreIfInterrupted()
     }
 
-    private val bell = PauseBell(context)
+    private val bell = BellPlayer(context)
     private val handler = Handler(Looper.getMainLooper())
     private val deferredHide = Runnable { hide() }
 
@@ -98,6 +101,7 @@ internal class OverlayController(private val context: Context) {
             windowManager.addView(composeView, params)
             view = composeView
             lifecycleOwner = owner
+            RunningState.pauseShowing = true
             audio.acquire()
             true
         } catch (e: RuntimeException) {
@@ -116,7 +120,8 @@ internal class OverlayController(private val context: Context) {
         if (view == null || leaving || bellRinging) return
         bellRinging = true
         showBellVerse = true
-        bell.play(onFinished = { bellRinging = false })
+        // The shared bell setting is used here from Phase 8; until then, always the default bell.
+        bell.play(BellSettings.DEFAULT_BELL_ID, onFinished = { bellRinging = false })
     }
 
     /** Animations are switched off system-wide (the closest Android has to "reduce motion"). */
@@ -140,6 +145,7 @@ internal class OverlayController(private val context: Context) {
         leaving = false
         val current = view ?: return
         view = null
+        RunningState.pauseShowing = false
         // The bell belongs to the pause: leaving it (Continue, Exit or switching away) cuts it short.
         bell.stop()
         audio.release()

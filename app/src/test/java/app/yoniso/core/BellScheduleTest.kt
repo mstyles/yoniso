@@ -280,4 +280,21 @@ class BellScheduleTest {
         assertTrue(BellSchedule.isLate(due, due.plusSeconds(121)))
         assertFalse(BellSchedule.isLate(due, due.minusSeconds(5)))
     }
+
+    @Test
+    fun `exact alarms get two minutes`() {
+        val due = at("2026-11-11T09:00")
+        assertEquals(Duration.ofMinutes(2), BellSchedule.lateTolerance(due.minusSeconds(1800), due, exact = true))
+    }
+
+    @Test
+    fun `inexact alarms may be late by three quarters of their lead time`() {
+        val due = at("2026-11-11T09:00")
+        // Set 20 minutes ahead: Android may deliver up to 15 minutes late.
+        assertEquals(Duration.ofMinutes(17), BellSchedule.lateTolerance(due.minusSeconds(1200), due, exact = false))
+        // A long lead is capped at an hour.
+        assertEquals(Duration.ofHours(1), BellSchedule.lateTolerance(due.minusSeconds(4 * 3600), due, exact = false))
+        // Set after it was due (e.g. a clock change): no extra allowance.
+        assertEquals(Duration.ofMinutes(2), BellSchedule.lateTolerance(due.plusSeconds(60), due, exact = false))
+    }
 }
