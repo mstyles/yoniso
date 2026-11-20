@@ -7,7 +7,7 @@ This extends Yoniso beyond the PRD, whose principles still apply: mindfulness ov
 ## Status
 
 - [x] **Phase 5: platform prototype.** Done 2026-11-10 on the emulator (API 36) and the Pixel 8 (Android 17). See "Phase 5: results". A bell can play from the background, but a non-exact alarm can't start it while the accessibility service is off.
-- [ ] **Phase 6: schedule core and tests.**
+- [x] **Phase 6: schedule core and tests.** 59 new unit tests (114 in all) pass. See "Phase 6: as built".
 - [ ] **Phase 7: ringing in the background.** Alarms, the ring service, reboots.
 - [ ] **Phase 8: settings UI.** Bells screen, bundled bells, shared bell setting.
 - [ ] **Phase 9: custom bells and vibration.** Upload, vibration editor, previews.
@@ -54,7 +54,7 @@ Made while brainstorming on 2026-11-10.
   - While media is playing (`isMusicActive`), follow a setting: **vibrate only** (default), ring anyway, or skip.
   - Skip while a Yoniso pause is showing. The pause already is the reminder.
 - If it rings, the receiver starts a short **foreground service** (`BellService`, type `shortService` on Android 14+, `mediaPlayback` on 12–13, where `shortService` doesn't exist) that plays the bell and/or vibration and stops itself afterwards. A receiver alone only has about 10 seconds, and the bell lasts 22.
-  - Background start: an exact alarm exempts the app from Android 12+'s background foreground-service limits, and so does a bound accessibility service. **An inexact alarm with the accessibility service off has no exemption.** Phase 5 must find a path that works in that case, or random mode will need exact alarms too.
+  - Background start: an exact alarm exempts the app from Android 12+'s background foreground-service limits, and so does a bound accessibility service. **An inexact alarm with the accessibility service off has no exemption** (confirmed in Phase 5), so that case vibrates only.
   - The notification is quiet ("Mindfulness bell" with a Stop action) on its own low-importance channel. On Android 13+, without `POST_NOTIFICATIONS`, the service still runs; the notification only shows in the task manager.
   - Audio uses `USAGE_ALARM`, like the pause's "Listen to a bell". The notification stream would be muted in vibrate mode. The bell follows the alarm volume, with a bell volume slider (0.1 to 1.0 of that stream). It takes `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`, so music ducks rather than stops.
   - Side effect: the bell is as loud as the user's alarm volume, which is often set high. The bell volume slider defaults to 0.5, and the bells screen says the loudness follows the alarm volume.
@@ -74,7 +74,7 @@ Made while brainstorming on 2026-11-10.
 ### Vibration
 
 - **Presets:** Gentle tap, Double tap, Heartbeat, Three slow, Swell.
-- **Custom:** number of pulses (1–6), pulse length (50–1000 ms), gap (100–1500 ms), intensity (low / medium / high, or a slider), and shape (steady, or swell, where amplitude ramps up through each pulse; amplitude-control devices only). Repeat the pattern 1–3 times.
+- **Custom:** number of pulses (1–6), pulse length (50–1500 ms), gap (100–1500 ms), intensity (low / medium / high, or a slider), and shape (steady, or swell, where amplitude ramps up through each pulse; amplitude-control devices only). Repeat the pattern 1–3 times.
 - The total is capped at 6 seconds. Editing a preset turns it into Custom.
 - A **Preview** button plays the current pattern straight away.
 - Stored as the parameters, not a raw waveform, so the editor can always show them again. `core/VibrationPattern.toWaveform()` turns them into timings and amplitudes, and is unit tested.
@@ -159,6 +159,20 @@ The prototype (`app/yoniso/proto/`, branch `bells-prototype`, not merged) schedu
 
 - `core/BellSettings`, `core/BellSchedule`, `core/VibrationPattern`, `core/RingDecision` (silent/DND/call/media/pause → ring, vibrate, or skip). All pure, with an injected clock, zone and `Random`.
 - Tests: clock alignment (including 45 and 90 minutes), random gaps within min/max with a seeded `Random`, active-window starts and ends, windows crossing midnight, day filters, all days off (no next ring), snooze, DST forward and back, late alarms, and each `RingDecision` case. Waveform length cap and amplitude clamping.
+
+### Phase 6: as built
+
+- `core/BellSettings`: timing, interval, random bounds, `ActiveHours`, output, bell ID, volume, vibration, media behaviour and snooze. `sanitized()` makes stale stored values safe: an interval that isn't offered becomes 15, random bounds are clamped to 5–240 minutes and ordered, times are cut to whole minutes, and volume and vibration are clamped. Defaults: off, random 10–30 minutes, 08:00–21:00 every day, bell only, volume 0.5, Double tap, vibrate during media.
+- `core/BellSchedule.nextRing(after, settings, zone, random)` returns the first ring strictly after `after`, or null if bells are off or no day is active. It looks up to a week ahead.
+  - Interval slots are multiples of the interval from local midnight. All the options divide a day, so 15 minutes lands on the quarter hours and 45 and 90 minutes stay aligned every day.
+  - **The window end is inclusive**, so "08:00–21:00" hourly rings at 21:00. A window with start equal to end lasts 24 hours.
+  - Random mode merges touching windows into one span, so with "all day, every day" the gap doesn't restart at midnight. A random gap that would leave the span starts again from the next span's start, and a span shorter than the minimum gap never rings.
+  - DST is handled by `java.time`: a slot in the skipped hour moves forward (02:30 rings at 03:30), and the repeated hour rings once (on its first pass). The tests check that rings stay unique and in order.
+  - `isActive` (the receiver's safety check) and `isLate` (more than 2 minutes) are separate functions.
+- `core/RingDecider.decide(due, now, settings, zone, phone)` returns `Ring(sound, vibrate)` or `Skip(reason)`. Skips are checked in this order: disabled, late, snoozed, outside hours (checked against the due time), DND, silent, call, pause showing, media (with Skip). When sound is blocked, either by media with Vibrate or because `canPlaySound` is false (inexact alarm with the accessibility service off), a bell-only setting vibrates instead.
+- `core/VibrationPattern.toWaveform(amplitudeControl)` builds alternating off/on timings starting with off, with consecutive off segments merged so it still alternates after a cut. Swell is four rising steps per pulse. Without amplitude control, every pulse uses `DEFAULT_AMPLITUDE` (-1) and plays steady. The total is cut at 6 seconds, and repeats are 600 ms apart. Pulse length goes up to 1500 ms, because the Swell preset is 1200 ms.
+- `VibrationPreset`: Gentle tap, Double tap (the default), Heartbeat (two quick pulses, repeated), Three slow, Swell. `VibrationPreset.of(pattern)` returns null for a custom pattern.
+- Bug found by the tests: a time exactly on the boundary between two touching windows matched the earlier, ending window, so the next window was skipped and the gap was 24 hours. Merging touching windows fixed it, and a regression test covers it.
 
 ### Phase 7: ringing in the background
 
