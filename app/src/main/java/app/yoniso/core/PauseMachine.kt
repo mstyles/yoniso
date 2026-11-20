@@ -16,8 +16,14 @@ sealed interface PauseEvent {
     /**
      * A window-state event from [packageName]. May be a duplicate or an ignored package.
      * [isFullScreen] is false for dialogs and popups that don't fill the screen.
+     * [isPaneChange] is true when the event is about a pane inside a window appearing,
+     * disappearing or changing (Android 9+), rather than a window coming to the front.
      */
-    data class WindowChanged(val packageName: String, val isFullScreen: Boolean = true) : PauseEvent
+    data class WindowChanged(
+        val packageName: String,
+        val isFullScreen: Boolean = true,
+        val isPaneChange: Boolean = false,
+    ) : PauseEvent
 
     /** The overlay requested by [PauseAction.ShowOverlay] was added. */
     data object OverlayShown : PauseEvent
@@ -72,6 +78,9 @@ sealed interface PauseAction {
  *
  * Rules:
  * - Popups (windows that don't fill the screen) from unselected apps are not app switches.
+ * - Pane changes are never app switches. An app that has just gone to the background can
+ *   still report one (e.g. YouTube about a second after going home), and it would otherwise
+ *   look like that app opening again.
  * - Only one overlay at a time. A new foreground app hides any current overlay before
  *   the new app is considered.
  * - An app is paused only if Yoniso is enabled, the app is selected, its cooldown has
@@ -104,7 +113,8 @@ class PauseMachine(
     private var continuedPackage: String? = null
 
     fun handle(event: PauseEvent): List<PauseAction> = when (event) {
-        is PauseEvent.WindowChanged -> onWindowChanged(event.packageName, event.isFullScreen)
+        is PauseEvent.WindowChanged ->
+            if (event.isPaneChange) emptyList() else onWindowChanged(event.packageName, event.isFullScreen)
         PauseEvent.OverlayShown -> onOverlayShown()
         PauseEvent.OverlayFailed -> onOverlayFailed()
         PauseEvent.TimerFinished -> onTimerFinished()

@@ -130,7 +130,14 @@ class YonisoAccessibilityService : AccessibilityService() {
         // settings screen is a real app switch. Without that, Chrome → Yoniso → Chrome would
         // look like Chrome never left, so choosing Chrome in Yoniso and going back wouldn't pause.
         if (pkg == packageName && event.className?.toString() != MainActivity::class.java.name) return
-        dispatch(PauseEvent.WindowChanged(pkg, isFullScreen = event.isFullScreen))
+        dispatch(
+            PauseEvent.WindowChanged(
+                pkg,
+                isFullScreen = event.isFullScreen,
+                // A window coming to the front has no change types; a pane change has some.
+                isPaneChange = event.contentChangeTypes != AccessibilityEvent.CONTENT_CHANGE_TYPE_UNDEFINED,
+            ),
+        )
     }
 
     override fun onInterrupt() = Unit

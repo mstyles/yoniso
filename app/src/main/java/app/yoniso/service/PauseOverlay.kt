@@ -17,10 +17,17 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -114,53 +121,81 @@ internal fun PauseOverlay(
     val contentAlpha = remember { Animatable(if (reducedMotion) 1f else 0f) }
     LaunchedEffect(Unit) { contentAlpha.animateTo(1f, tween(FADE_MILLIS)) }
 
+    val pauseOrChoice = @Composable {
+        AnimatedContent(
+            targetState = showChoice,
+            transitionSpec = {
+                if (reducedMotion) {
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    fadeIn(tween(FADE_MILLIS, delayMillis = FADE_MILLIS / 2)) togetherWith
+                        fadeOut(tween(FADE_MILLIS / 2))
+                }
+            },
+            // A fixed minimum height keeps the circle still when the text changes.
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 260.dp)
+                // Read out when the pause gives way to the choice.
+                .semantics { liveRegion = LiveRegionMode.Polite },
+            contentAlignment = Alignment.TopCenter,
+            label = "pauseToChoice",
+        ) { choice ->
+            if (choice) {
+                Choice(colors, bellRinging, showBellVerse, reducedMotion, onContinue, onListenToBell, onExit)
+            } else {
+                Breathe(colors)
+            }
+        }
+    }
+
     MaterialTheme {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(colors.background)
                 .semantics { paneTitle = "Mindful pause" },
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = contentAlpha.value }
-                    .padding(32.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                BreathingCircle(colors = colors, animate = !reducedMotion)
-                Spacer(Modifier.height(32.dp))
-
-                AnimatedContent(
-                    targetState = showChoice,
-                    transitionSpec = {
-                        if (reducedMotion) {
-                            EnterTransition.None togetherWith ExitTransition.None
-                        } else {
-                            fadeIn(tween(FADE_MILLIS, delayMillis = FADE_MILLIS / 2)) togetherWith
-                                fadeOut(tween(FADE_MILLIS / 2))
-                        }
-                    },
-                    // A fixed minimum height keeps the circle still when the text changes.
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 260.dp)
-                        // Read out when the pause gives way to the choice.
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                    contentAlignment = Alignment.TopCenter,
-                    label = "pauseToChoice",
-                ) { choice ->
-                    if (choice) {
-                        Choice(colors, bellRinging, showBellVerse, reducedMotion, onContinue, onListenToBell, onExit)
-                    } else {
-                        Breathe(colors)
-                    }
+            // Stacked, the circle and the choice need about 610dp of height. A phone in
+            // landscape (e.g. for a game) has about 410dp, which pushed the buttons off screen,
+            // so a wide, short window puts them side by side instead.
+            val sideBySide = maxWidth > maxHeight && maxHeight < STACKED_MIN_HEIGHT
+            // Scrolls only if it still doesn't fit (e.g. a very large font size), so the buttons
+            // can always be reached. The minimum height keeps it centred when it does fit.
+            val content = Modifier
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight)
+                .fillMaxWidth()
+                .graphicsLayer { alpha = contentAlpha.value }
+                // The background covers the camera cutout in landscape; the content stays clear of it.
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .padding(32.dp)
+            if (sideBySide) {
+                Row(
+                    modifier = content,
+                    horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    BreathingCircle(colors = colors, animate = !reducedMotion)
+                    Box(Modifier.widthIn(max = 360.dp)) { pauseOrChoice() }
+                }
+            } else {
+                Column(
+                    modifier = content,
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    BreathingCircle(colors = colors, animate = !reducedMotion)
+                    Spacer(Modifier.height(32.dp))
+                    pauseOrChoice()
                 }
             }
         }
     }
 }
+
+/** Below this height, a landscape window puts the circle and the choice side by side. */
+private val STACKED_MIN_HEIGHT = 640.dp
 
 @Composable
 private fun Breathe(colors: OverlayColors) {

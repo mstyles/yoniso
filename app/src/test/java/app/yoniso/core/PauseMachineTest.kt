@@ -203,6 +203,34 @@ class PauseMachineTest {
     }
 
     @Test
+    fun `a pane event from a selected app that has gone to the background does not pause`() {
+        // The emulator bug: after Exit (or Continue, then Home) the launcher came to the front,
+        // then YouTube, already in the background, sent a window-state event for a pane
+        // disappearing (not full screen). With no cooldown it paused again over the home screen.
+        val m = machine(PauseSettings(selectedPackages = setOf(A), cooldownDuration = CooldownDuration.NONE))
+        m.pauseUntilChoice(A)
+        m.handle(Exit)
+        m.handle(WindowChanged(HOME))
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(A, isFullScreen = false, isPaneChange = true)))
+        assertEquals(PauseState.IDLE, m.state)
+
+        // Opening A for real still pauses.
+        assertEquals(listOf(ShowOverlay(A)), m.handle(WindowChanged(A)))
+    }
+
+    @Test
+    fun `a pane event does not dismiss the pause or reset the continue rule`() {
+        val m = machine(PauseSettings(selectedPackages = setOf(A), cooldownDuration = CooldownDuration.NONE))
+        m.pause(A)
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(OTHER, isPaneChange = true)))
+        assertEquals(PauseState.PAUSING, m.state)
+        m.handle(TimerFinished)
+        m.handle(Continue)
+        m.handle(WindowChanged(OTHER, isPaneChange = true))
+        assertEquals(emptyList<PauseAction>(), m.handle(WindowChanged(A)))
+    }
+
+    @Test
     fun `full-screen unselected app mid-pause still dismisses the overlay`() {
         val m = machine()
         m.pause(A)
