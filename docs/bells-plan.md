@@ -9,7 +9,7 @@ This extends Yoniso beyond the PRD, whose principles still apply: mindfulness ov
 - [x] **Phase 5: platform prototype.** Done 2026-11-10 on the emulator (API 36) and the Pixel 8 (Android 17). See "Phase 5: results". A bell can play from the background, but a non-exact alarm can't start it while the accessibility service is off.
 - [x] **Phase 6: schedule core and tests.** 59 new unit tests (114 in all) pass. See "Phase 6: as built".
 - [x] **Phase 7: ringing in the background.** 117 unit tests pass. Tested on the emulator (API 36), driven over adb. See "Phase 7: as built".
-- [ ] **Phase 8: settings UI.** Bells screen, bundled bells, shared bell setting.
+- [x] **Phase 8: settings UI.** 122 unit tests pass. Tested on the emulator. Six CC0 bells added. See "Phase 8: as built".
 - [ ] **Phase 9: custom bells and vibration.** Upload, vibration editor, previews.
 - [ ] **Phase 10: extras, testing and Play.** Tile, snooze, device testing, disclosures.
 
@@ -218,6 +218,25 @@ The prototype (`app/yoniso/proto/`, branch `bells-prototype`, not merged) schedu
 - Notification permission request and exact-alarm grant flow.
 - Add the CC0 bells (trim and normalise like `bell.mp3`) and their credits.
 - "Listen to a bell" in the pause plays the shared bell.
+
+### Phase 8: as built
+
+- **Main screen:** a "Mindfulness bells" row below Cooldown. It shows a summary ("Every 10–30 min, 8:00 AM–9:00 PM, weekdays"). Tapping the row opens the bells screen, and its switch turns bells on and off.
+- **Bells screen** (`ui/BellsScreen`), top to bottom:
+  - A "Ring bells" switch and a status line: "Off. No bells ring.", "On. Next bell at 8:00 AM." for set times, or "around ..." for random ones, with "tomorrow" or a weekday when it isn't today.
+  - Problems from `core/BellProblems` (unit tested): no days chosen, Do Not Disturb, silent, and a "Let Yoniso ring on time" card with "Open settings" when exact alarms aren't allowed. The card says bells will only vibrate if accessibility access is off too, and otherwise that they may come late.
+  - Timing chips "At set times" or "At random". Set times show the interval chips. Random shows a range slider from 5 to 120 minutes in steps of 5, saved when the thumb is let go.
+  - Hours: "From" and "To" buttons that open a Material time picker, in the phone's 12- or 24-hour style. It notes when the window crosses midnight or lasts all day.
+  - Day chips in the locale's week order, announced with the full day name.
+  - "Each bell": Rings / Vibrates / Rings and vibrates.
+  - Bell (shown when it rings): radio rows with Play/Stop previews, and the volume slider. Previews stop when leaving the screen.
+  - "While music or video plays": Vibrate only / Ring as usual / Skip the bell.
+- **Turning bells on** (from either switch): on Android 13+, Android's notification prompt if it isn't granted. Then, if exact alarms aren't allowed, a "Let bells ring on time?" dialog with "Open settings" (Yoniso's "Alarms & reminders" page) or "Not now". Bells work either way.
+- Every change goes through `MainActivity.updateBells`, which saves and reschedules on `BellAlarms.scope`, so it finishes even if the screen closes. The environment (exact alarms, accessibility, DND, silent) is checked again in `onResume`.
+- **Shared bell:** the accessibility service observes the bell settings, and "Listen to a bell" plays the chosen bell at the bell volume.
+- Shared UI pieces (`Section`, `Choices`, and a new `SubScreen` header) moved to `ui/Components.kt`.
+- **Bundled bells:** the Plum Village bell plus six CC0 1.0 bells from Freesound: Singing bowl, Deep bowl, Bright bell, Tingsha, Harmony bell and Temple bell (`res/raw/bell_<id>.mp3`). Picked from the best-rated CC0 single strikes, with the licence checked on each sound's page. Each was made from Freesound's high-quality preview (about 180 kbps; originals need a login), trimmed to one strike, faded out, normalised to about −20.5 LUFS like `bell.mp3`, and saved as 44.1 kHz stereo 192 kbps MP3. They add about 2 MB. `BundledBell` holds each one's author and source URL. The About screen credits them with links, and the README lists them under "Sounds".
+- Emulator: the whole turn-on flow (notification prompt, exact-alarm dialog, settings toggle, returning without the card, the same ring re-set as exact), timing, interval, time pickers, days, preview and stop, volume, a background bell playing the chosen bell (Tingsha), the About credits, and "Listen to a bell" in a pause.
 
 ### Phase 9: custom bells and vibration
 

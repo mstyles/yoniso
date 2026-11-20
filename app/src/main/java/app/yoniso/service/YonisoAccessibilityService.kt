@@ -19,6 +19,7 @@ import app.yoniso.core.Clock
 import app.yoniso.core.PauseAction
 import app.yoniso.core.PauseEvent
 import app.yoniso.core.PauseMachine
+import app.yoniso.data.BellRepository
 import app.yoniso.data.InstalledApps
 import app.yoniso.data.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -75,7 +76,10 @@ class YonisoAccessibilityService : AccessibilityService() {
         calls = CallWatcher(this) { dispatch(PauseEvent.CallStarted) }.also { it.start() }
         repository = SettingsRepository(this)
         val ignored = buildIgnoredPackages()
-        scope = MainScope().also { it.launch { observeSettings(ignored) } }
+        scope = MainScope().also {
+            it.launch { observeSettings(ignored) }
+            it.launch { observeBell() }
+        }
         ContextCompat.registerReceiver(
             this,
             screenOffReceiver,
@@ -109,6 +113,14 @@ class YonisoAccessibilityService : AccessibilityService() {
                     dispatch(PauseEvent.SettingsChanged(settings))
                 }
             }
+    }
+
+    /** Keeps the pause's bell the same as the mindfulness bell. */
+    private suspend fun observeBell() {
+        BellRepository(this).settings.flowOn(Dispatchers.IO).collect {
+            overlay.bellId = it.bellId
+            overlay.bellVolume = it.volume
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {

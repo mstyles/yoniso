@@ -1,44 +1,73 @@
 package app.yoniso
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.NotificationManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.text.format.DateFormat
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.yoniso.bells.BellAlarms
+import app.yoniso.core.BellSettings
+import app.yoniso.data.BellRepository
 import app.yoniso.data.InstalledApps
 import app.yoniso.data.SettingsRepository
 import app.yoniso.service.YonisoAccessibilityService
 import app.yoniso.ui.AboutScreen
 import app.yoniso.ui.AppListScreen
+import app.yoniso.ui.BellEnvironment
+import app.yoniso.ui.BellsScreen
 import app.yoniso.ui.OnboardingScreen
 import app.yoniso.ui.SettingsScreen
 import app.yoniso.ui.YonisoTheme
+import app.yoniso.ui.bellSummary
 import kotlinx.coroutines.launch
 
 /**
- * Hosts the screens: first-launch onboarding, the main settings, the app list and About.
- * Settings are read from and written straight to [SettingsRepository]; the accessibility
- * service observes the same store.
+ * Hosts the screens: first-launch onboarding, the main settings, the app list, the bells and About.
+ * Settings are read from and written straight to [SettingsRepository] and [BellRepository]; the
+ * accessibility service observes the same stores. Every bell change also resets the bell's alarm.
  */
 class MainActivity : ComponentActivity() {
 
     /** Re-checked in [onResume], since the user can turn the service off at any time. */
     private var serviceEnabled by mutableStateOf(false)
+
+    /** Also re-checked in [onResume]: the user can change any of it in system settings. */
+    private var bellEnvironment by mutableStateOf(BellEnvironment())
+
+    /** Asking for exact alarms after bells are turned on, once the notification question is answered. */
+    private var askingForExactAlarms by mutableStateOf(false)
+
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        // Granted or not, bells still ring; the notification only adds a Stop button.
+        askForExactAlarmsIfNeeded()
+    }
+
+    private val bellRepository by lazy { BellRepository(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -54,6 +83,10 @@ class MainActivity : ComponentActivity() {
                 val settings by repository.settings.collectAsStateWithLifecycle(initialValue = null)
                 var choosingApps by rememberSaveable { mutableStateOf(false) }
                 var showingAbout by rememberSaveable { mutableStateOf(false) }
+                var showingBells by rememberSaveable { mutableStateOf(false) }
+                val bellSettings by bellRepository.settings.collectAsStateWithLifecycle(initialValue = BellSettings())
+                val nextRing by bellRepository.nextRingAt.collectAsStateWithLifecycle(initialValue = null)
+                val is24Hour = DateFormat.is24HourFormat(this)
                 val scope = rememberCoroutineScope()
 
                 val loadedSettings = settings
@@ -78,6 +111,17 @@ class MainActivity : ComponentActivity() {
 
                     showingAbout -> AboutScreen(onBack = { showingAbout = false })
 
+                    showingBells -> BellsScreen(
+                        settings = bellSettings,
+                        nextRing = nextRing,
+                        environment = bellEnvironment,
+                        is24Hour = is24Hour,
+                        onEnabledChange = ::setBellsEnabled,
+                        onChange = ::updateBells,
+                        onAllowExactAlarms = ::openExactAlarmSettings,
+                        onBack = { showingBells = false },
+                    )
+
                     else -> SettingsScreen(
                         settings = loadedSettings,
                         serviceEnabled = serviceEnabled,
@@ -85,8 +129,34 @@ class MainActivity : ComponentActivity() {
                         onChooseApps = { choosingApps = true },
                         onPauseDurationChange = { scope.launch { repository.setPauseDuration(it) } },
                         onCooldownDurationChange = { scope.launch { repository.setCooldownDuration(it) } },
+                        bellSummary = bellSummary(bellSettings, is24Hour),
+                        bellsEnabled = bellSettings.enabled,
+                        onBellsEnabledChange = ::setBellsEnabled,
+                        onBells = { showingBells = true },
                         onOpenAccessibilitySettings = ::openAccessibilitySettings,
                         onAbout = { showingAbout = true },
+                    )
+                }
+
+                if (askingForExactAlarms) {
+                    AlertDialog(
+                        onDismissRequest = { askingForExactAlarms = false },
+                        title = { Text("Let bells ring on time?") },
+                        text = {
+                            Text(
+                                "Android needs your permission for Yoniso to ring bells at their time. " +
+                                    "Without it, bells may come several minutes late, and can only vibrate " +
+                                    "while accessibility access is off. On the next screen, turn on " +
+                                    "\"Allow setting alarms and reminders\".",
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                askingForExactAlarms = false
+                                openExactAlarmSettings()
+                            }) { Text("Open settings") }
+                        },
+                        dismissButton = { TextButton(onClick = { askingForExactAlarms = false }) { Text("Not now") } },
                     )
                 }
             }
@@ -96,6 +166,51 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         serviceEnabled = isServiceEnabled()
+        val audio = getSystemService(AudioManager::class.java)
+        val filter = getSystemService(NotificationManager::class.java).currentInterruptionFilter
+        bellEnvironment = BellEnvironment(
+            exactAlarmsAllowed = BellAlarms.canRingOnTime(this),
+            accessibilityOn = serviceEnabled,
+            doNotDisturb = filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+                filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN,
+            silent = audio.ringerMode == AudioManager.RINGER_MODE_SILENT,
+        )
+    }
+
+    /** Saves a bell change and resets the alarm to match. Runs on past this screen, so it always completes. */
+    private fun updateBells(transform: (BellSettings) -> BellSettings) {
+        val app = applicationContext
+        BellAlarms.scope.launch {
+            bellRepository.update(transform)
+            BellAlarms.reschedule(app)
+        }
+    }
+
+    /** Turning bells on asks for the notification permission, then for exact alarms, if missing. */
+    private fun setBellsEnabled(enabled: Boolean) {
+        updateBells { it.copy(enabled = enabled) }
+        if (!enabled) return
+        val needsNotifications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needsNotifications) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            askForExactAlarmsIfNeeded()
+        }
+    }
+
+    private fun askForExactAlarmsIfNeeded() {
+        if (!BellAlarms.canRingOnTime(this)) askingForExactAlarms = true
+    }
+
+    /** Yoniso's "Alarms & reminders" page (Android 12+). Exact alarms need no permission before that. */
+    private fun openExactAlarmSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        try {
+            startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, "package:$packageName".toUri()))
+        } catch (_: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri()))
+        }
     }
 
     private fun openAccessibilitySettings() {

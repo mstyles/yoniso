@@ -43,6 +43,11 @@ class BellRepository(context: Context) {
         store.edit { prefs -> prefs.write(transform(prefs.toBellSettings()).sanitized()) }
     }
 
+    /** When the next bell is due, or null if none is set. */
+    val nextRingAt: Flow<Instant?> = store.safeData()
+        .map { prefs -> prefs[NEXT_RING_AT]?.let(Instant::ofEpochMilli) }
+        .distinctUntilChanged()
+
     /** When the alarm that is set now is due, or null if none is set. */
     suspend fun nextRingAt(): Instant? = store.safeData().first()[NEXT_RING_AT]?.let(Instant::ofEpochMilli)
 

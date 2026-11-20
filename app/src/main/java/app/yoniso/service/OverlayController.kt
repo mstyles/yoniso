@@ -36,6 +36,10 @@ internal class OverlayController(private val context: Context) {
     }
 
     private val bell = BellPlayer(context)
+
+    /** The bell chosen on the bells screen, and its volume. "Listen to a bell" plays it too. */
+    var bellId: String = BellSettings.DEFAULT_BELL_ID
+    var bellVolume: Float = 1f
     private val handler = Handler(Looper.getMainLooper())
     private val deferredHide = Runnable { hide() }
 
@@ -120,8 +124,7 @@ internal class OverlayController(private val context: Context) {
         if (view == null || leaving || bellRinging) return
         bellRinging = true
         showBellVerse = true
-        // The shared bell setting is used here from Phase 8; until then, always the default bell.
-        bell.play(BellSettings.DEFAULT_BELL_ID, onFinished = { bellRinging = false })
+        bell.play(bellId, bellVolume, onFinished = { bellRinging = false })
     }
 
     /** Animations are switched off system-wide (the closest Android has to "reduce motion"). */

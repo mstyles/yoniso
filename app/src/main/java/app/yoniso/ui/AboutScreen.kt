@@ -2,6 +2,7 @@ package app.yoniso.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,14 +17,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.yoniso.R
+import app.yoniso.bells.BundledBell
 
 /** What the name means, and credits. */
 @Composable
@@ -61,8 +65,21 @@ fun AboutScreen(onBack: () -> Unit) {
                             "brought you here. Then continue, or don't.",
                     )
                 }
-                AboutSection("The bell") {
-                    Paragraph("The bell sound is courtesy of Plum Village.")
+                AboutSection("The bells") {
+                    Paragraph("The Plum Village bell is courtesy of Plum Village.")
+                    Paragraph(
+                        "The other bells are from Freesound, shared by their recordists under CC0 " +
+                            "(public domain). Thank you to:",
+                    )
+                    val uriHandler = LocalUriHandler.current
+                    BundledBell.entries.filter { it.sourceUrl != null }.forEach { bell ->
+                        TextButton(
+                            onClick = { runCatching { uriHandler.openUri(bell.sourceUrl!!) } },
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
+                            Text("${bell.label}: ${bell.author}", style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
                 }
             }
         }

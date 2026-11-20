@@ -1,8 +1,8 @@
 package app.yoniso.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -12,13 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -31,8 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.yoniso.core.CooldownDuration
@@ -51,6 +49,10 @@ fun SettingsScreen(
     onChooseApps: () -> Unit,
     onPauseDurationChange: (PauseDuration) -> Unit,
     onCooldownDurationChange: (CooldownDuration) -> Unit,
+    bellSummary: String,
+    bellsEnabled: Boolean,
+    onBellsEnabledChange: (Boolean) -> Unit,
+    onBells: () -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
     onAbout: () -> Unit,
 ) {
@@ -126,6 +128,35 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            // Tapping the row opens the bells screen; the switch turns bells on and off.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClickLabel = "Open bell settings", onClick = onBells),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Mindfulness bells",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    Text(
+                        bellSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.padding(8.dp))
+                Switch(
+                    checked = bellsEnabled,
+                    onCheckedChange = onBellsEnabledChange,
+                    modifier = Modifier.semantics { contentDescription = "Mindfulness bells" },
+                )
+            }
+
+            HorizontalDivider()
+
             val uriHandler = LocalUriHandler.current
             Row {
                 TextButton(onClick = onAbout) { Text("About") }
@@ -172,39 +203,6 @@ private fun AccessibilityStatus(serviceEnabled: Boolean, onOpenAccessibilitySett
             )
             // Google Play requires an explicit "agree" right after the disclosure above.
             Button(onClick = onOpenAccessibilitySettings) { Text("Agree and open settings") }
-        }
-    }
-}
-
-@Composable
-private fun Section(title: String, description: String? = null, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-        if (description != null) {
-            Text(
-                description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        content()
-    }
-}
-
-/** A single-choice group of chips, announced as radio buttons. */
-@Composable
-private fun <T> Choices(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
-    FlowRow(
-        Modifier.selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        options.forEach { option ->
-            FilterChip(
-                selected = option == selected,
-                onClick = { onSelect(option) },
-                label = { Text(label(option)) },
-                modifier = Modifier.semantics { role = Role.RadioButton },
-            )
         }
     }
 }

@@ -53,6 +53,20 @@ Yoniso is not an accessibility tool, so it must not set `isAccessibilityTool`. P
 
 Sources: Play Console Help on [AccessibilityService API use](https://support.google.com/googleplay/android-developer/answer/10964491), [best practices for prominent disclosure](https://support.google.com/googleplay/android-developer/answer/11150561), the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311), and [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469).
 
+## Sounds
+
+- **Plum Village bell** (`res/raw/bell.mp3`): a single strike trimmed from the Plum Village app's big bell, used with Plum Village's permission.
+- The other bells are from [Freesound](https://freesound.org), under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Each was trimmed to one strike, faded out and normalised to about −20.5 LUFS, from Freesound's high-quality preview:
+
+| Bell | File | Source | By |
+|---|---|---|---|
+| Singing bowl | `bell_singing_bowl.mp3` | [240934](https://freesound.org/people/the_very_Real_Horst/sounds/240934/) | the_very_Real_Horst |
+| Deep bowl | `bell_deep_bowl.mp3` | [421829](https://freesound.org/people/dersinnsspace/sounds/421829/) | dersinnsspace |
+| Bright bell | `bell_bright_bell.mp3` | [346328](https://freesound.org/people/steaq/sounds/346328/) | steaq |
+| Tingsha | `bell_tingsha.mp3` | [435074](https://freesound.org/people/steffcaffrey/sounds/435074/) | steffcaffrey |
+| Harmony bell | `bell_harmony_bell.mp3` | [400605](https://freesound.org/people/newagesoup/sounds/400605/) | newagesoup |
+| Temple bell | `bell_temple_bell.mp3` | [668647](https://freesound.org/people/tec_studio/sounds/668647/) | tec_studio |
+
 ## License
 
 [MIT](LICENSE)
