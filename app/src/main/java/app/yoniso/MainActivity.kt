@@ -42,14 +42,16 @@ import app.yoniso.ui.AboutScreen
 import app.yoniso.ui.AppListScreen
 import app.yoniso.ui.BellEnvironment
 import app.yoniso.ui.BellsScreen
+import app.yoniso.ui.FeatureState
 import app.yoniso.ui.OnboardingScreen
-import app.yoniso.ui.SettingsScreen
+import app.yoniso.ui.HomeScreen
+import app.yoniso.ui.PauseScreen
 import app.yoniso.ui.YonisoTheme
-import app.yoniso.ui.bellSummary
 import kotlinx.coroutines.launch
 
 /**
- * Hosts the screens: first-launch onboarding, the main settings, the app list, the bells and About.
+ * Hosts the screens: first-launch onboarding, home (a tile per feature), the pause settings and its
+ * app list, the bells and About.
  * Settings are read from and written straight to [SettingsRepository] and [BellRepository]; the
  * accessibility service observes the same stores. Every bell change also resets the bell's alarm.
  */
@@ -86,6 +88,7 @@ class MainActivity : ComponentActivity() {
                 val settings by repository.settings.collectAsStateWithLifecycle(initialValue = null)
                 var choosingApps by rememberSaveable { mutableStateOf(false) }
                 var showingAbout by rememberSaveable { mutableStateOf(false) }
+                var showingPause by rememberSaveable { mutableStateOf(false) }
                 var showingBells by rememberSaveable { mutableStateOf(false) }
                 val bellSettings by bellRepository.settings.collectAsStateWithLifecycle(initialValue = BellSettings())
                 val nextRing by bellRepository.nextRingAt.collectAsStateWithLifecycle(initialValue = null)
@@ -128,18 +131,26 @@ class MainActivity : ComponentActivity() {
                         onBack = { showingBells = false },
                     )
 
-                    else -> SettingsScreen(
+                    showingPause -> PauseScreen(
                         settings = loadedSettings,
                         serviceEnabled = serviceEnabled,
                         onEnabledChange = { scope.launch { repository.setEnabled(it) } },
                         onChooseApps = { choosingApps = true },
                         onPauseDurationChange = { scope.launch { repository.setPauseDuration(it) } },
                         onCooldownDurationChange = { scope.launch { repository.setCooldownDuration(it) } },
-                        bellSummary = bellSummary(bellSettings, is24Hour),
-                        bellsEnabled = bellSettings.enabled,
-                        onBellsEnabledChange = ::setBellsEnabled,
-                        onBells = { showingBells = true },
                         onOpenAccessibilitySettings = ::openAccessibilitySettings,
+                        onBack = { showingPause = false },
+                    )
+
+                    else -> HomeScreen(
+                        pauseState = when {
+                            !loadedSettings.enabled -> FeatureState.OFF
+                            !serviceEnabled -> FeatureState.NEEDS_ATTENTION
+                            else -> FeatureState.ON
+                        },
+                        onPause = { showingPause = true },
+                        bellsState = if (bellSettings.enabled) FeatureState.ON else FeatureState.OFF,
+                        onBells = { showingBells = true },
                         onAbout = { showingAbout = true },
                     )
                 }

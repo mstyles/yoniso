@@ -1,16 +1,11 @@
 package app.yoniso.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -20,54 +15,39 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.yoniso.core.CooldownDuration
 import app.yoniso.core.PauseDuration
 import app.yoniso.core.PauseSettings
 
-/** The published privacy policy (PRIVACY.md in the repository). Opened in the browser. */
-private const val PRIVACY_POLICY_URL = "https://github.com/mstyles/yoniso/blob/main/PRIVACY.md"
-
-/** The main screen (PRD FR-5). */
+/** The pause's settings (PRD FR-5): accessibility access, on/off, apps, pause length and cooldown. */
 @Composable
-fun SettingsScreen(
+fun PauseScreen(
     settings: PauseSettings,
     serviceEnabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     onChooseApps: () -> Unit,
     onPauseDurationChange: (PauseDuration) -> Unit,
     onCooldownDurationChange: (CooldownDuration) -> Unit,
-    bellSummary: String,
-    bellsEnabled: Boolean,
-    onBellsEnabledChange: (Boolean) -> Unit,
-    onBells: () -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
-    onAbout: () -> Unit,
+    onBack: () -> Unit,
 ) {
-    Surface(Modifier.fillMaxSize()) {
+    SubScreen("Pause before apps", onBack) {
         Column(
             Modifier
-                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(horizontal = 24.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Text(
-                "Yoniso",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.semantics { heading() },
+                "When an app you choose opens, Yoniso shows a short pause to breathe before you continue.",
+                style = MaterialTheme.typography.bodyLarge,
             )
 
             AccessibilityStatus(serviceEnabled, onOpenAccessibilitySettings)
@@ -94,14 +74,7 @@ fun SettingsScreen(
 
             Section("Apps") {
                 val count = settings.selectedPackages.size
-                Text(
-                    when (count) {
-                        0 -> "No apps selected yet."
-                        1 -> "1 app selected."
-                        else -> "$count apps selected."
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                Text(appCount(count), style = MaterialTheme.typography.bodyLarge)
                 OutlinedButton(onClick = onChooseApps) { Text("Choose apps") }
             }
 
@@ -125,50 +98,14 @@ fun SettingsScreen(
                     onSelect = onCooldownDurationChange,
                 )
             }
-
-            HorizontalDivider()
-
-            // Tapping the row opens the bells screen; the switch turns bells on and off.
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable(onClickLabel = "Open bell settings", onClick = onBells),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "Mindfulness bells",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(
-                        bellSummary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(Modifier.padding(8.dp))
-                Switch(
-                    checked = bellsEnabled,
-                    onCheckedChange = onBellsEnabledChange,
-                    modifier = Modifier.semantics { contentDescription = "Mindfulness bells" },
-                )
-            }
-
-            HorizontalDivider()
-
-            val uriHandler = LocalUriHandler.current
-            Row {
-                TextButton(onClick = onAbout) { Text("About") }
-                TextButton(
-                    onClick = {
-                        // Throws if no browser is installed; there is nothing more useful to do then.
-                        runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) }
-                    },
-                ) { Text("Privacy policy") }
-            }
         }
     }
+}
+
+private fun appCount(count: Int): String = when (count) {
+    0 -> "No apps selected yet."
+    1 -> "1 app selected."
+    else -> "$count apps selected."
 }
 
 @Composable

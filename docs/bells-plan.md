@@ -88,7 +88,7 @@ Made while brainstorming on 2026-11-10.
 
 ### UI
 
-- The main settings screen gets a "Mindfulness bells" row (on/off and a summary, e.g. "Every 10–30 min, 08:00–21:00") that opens a **Bells screen**:
+- The home screen has a square tile per feature, "Pause before apps" and "Mindfulness bells", showing only an icon (the Yoniso ripple, a singing bowl), filled when on and outlined when off. Tapping a tile opens that feature's screen, where it is switched on and off (changed on 2026-11-20; the bells were first a row on the pause settings). The **Bells screen**:
   - Master toggle and snooze ("Pause bells for 1 hour / until tomorrow").
   - Timing: interval or random chips, then the interval chips or a min/max range slider.
   - Active hours (two time pickers) and day chips.
@@ -269,6 +269,7 @@ The prototype (`app/yoniso/proto/`, branch `bells-prototype`, not merged) schedu
 | Edit to 5 × 1470 ms, twice | "Custom" chip, cut-off note, played 6008 ms |
 | Choosing a preset after editing | "Custom" chip gone |
 
+- **Home screen** (added after Phase 9, 2026-11-20): the pause and the bells no longer share a page. `ui/HomeScreen` shows two square tiles side by side, then About and Privacy policy. A tile shows only the feature's icon: the Yoniso ripple (`ic_pause_feature`, cropped from the launcher's monochrome icon) or a singing bowl on its cushion with sound arcs to each side (`ic_bell_feature`, drawn for Yoniso). It's filled with the accent colour when on, and outlined with a muted icon when off. TalkBack reads e.g. "Pause before apps, On". There's no switch on the home screen. Tapping a tile opens its page. The pause settings moved to `ui/PauseScreen` (was `SettingsScreen`), a sub-screen with the accessibility notice, on/off, apps, pause length and cooldown. The pause tile shows a red dot ("Needs access" to TalkBack) when the pause is on but accessibility access is off. The summary strings (`bellSummary`) were removed.
 - Not tested yet: a device without amplitude control (the strength and shape controls should hide), and the Pixel. Both are in the Phase 10 device tests.
 
 ### Phase 10: extras, testing and Play

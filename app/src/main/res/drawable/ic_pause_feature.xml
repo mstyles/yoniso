@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Yoniso ripple (from ic_launcher_monochrome), cropped to its rings, for the pause tile.
+  The tile tints it; the rings keep their alpha, so they still fade outwards.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="62"
+    android:viewportHeight="62">
+    <group
+        android:translateX="-23"
+        android:translateY="-23">
+        <path
+            android:pathData="M54,25a29,29 0,1 1,0,58a29,29 0,1 1,0,-58z"
+            android:strokeWidth="3"
+            android:strokeColor="#FF000000"
+            android:strokeAlpha="0.45" />
+        <path
+            android:pathData="M54,34a20,20 0,1 1,0,40a20,20 0,1 1,0,-40z"
+            android:strokeWidth="3"
+            android:strokeColor="#FF000000"
+            android:strokeAlpha="0.75" />
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M54,44a10,10 0,1 1,0,20a10,10 0,1 1,0,-20z" />
+    </group>
+</vector>

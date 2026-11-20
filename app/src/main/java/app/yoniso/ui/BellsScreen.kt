@@ -372,28 +372,3 @@ private fun DayPicker(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) 
 /** A time in the user's 12- or 24-hour style. */
 internal fun formatTime(time: LocalTime, is24Hour: Boolean): String =
     time.format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a", Locale.getDefault()))
-
-/** A short summary for the main screen, e.g. "Every 10–30 min, 08:00–21:00". */
-internal fun bellSummary(settings: BellSettings, is24Hour: Boolean): String {
-    if (!settings.enabled) return "Off"
-    val timing = when (settings.timing) {
-        BellTiming.RANDOM -> if (settings.randomMinMinutes == settings.randomMaxMinutes) {
-            "Every ${settings.randomMinMinutes} min"
-        } else {
-            "Every ${settings.randomMinMinutes}–${settings.randomMaxMinutes} min"
-        }
-        BellTiming.INTERVAL -> "Every ${intervalLabel(settings.intervalMinutes)}"
-    }
-    val h = settings.activeHours
-    val hours = if (h.start == h.end) "all day" else "${formatTime(h.start, is24Hour)}–${formatTime(h.end, is24Hour)}"
-    val weekdays = DayOfWeek.entries.take(5).toSet()
-    val days = when (h.days) {
-        DayOfWeek.entries.toSet() -> null
-        weekdays -> "weekdays"
-        DayOfWeek.entries.toSet() - weekdays -> "weekends"
-        emptySet<DayOfWeek>() -> "no days"
-        else -> DayOfWeek.entries.filter { it in h.days }
-            .joinToString(" ") { it.getDisplayName(TextStyle.SHORT, Locale.getDefault()) }
-    }
-    return listOfNotNull(timing, hours, days).joinToString(", ")
-}
