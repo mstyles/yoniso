@@ -10,7 +10,7 @@ This extends Yoniso beyond the PRD, whose principles still apply: mindfulness ov
 - [x] **Phase 6: schedule core and tests.** 59 new unit tests (114 in all) pass. See "Phase 6: as built".
 - [x] **Phase 7: ringing in the background.** 117 unit tests pass. Tested on the emulator (API 36), driven over adb. See "Phase 7: as built".
 - [x] **Phase 8: settings UI.** 122 unit tests pass. Tested on the emulator. Six CC0 bells added. See "Phase 8: as built".
-- [ ] **Phase 9: custom bells and vibration.** Upload, vibration editor, previews.
+- [x] **Phase 9: custom bells and vibration.** 136 unit tests pass. Tested on the emulator. See "Phase 9: as built".
 - [ ] **Phase 10: extras, testing and Play.** Tile, snooze, device testing, disclosures.
 
 ## Decisions
@@ -242,6 +242,34 @@ The prototype (`app/yoniso/proto/`, branch `bells-prototype`, not merged) schedu
 
 - Import, validate, name, rename and delete custom bells.
 - Vibration presets, editor, and preview. Intensity controls appear only on amplitude-control devices.
+
+### Phase 9: as built
+
+- **Core** (`core/CustomBell`, unit tested): a `CustomBell` is a file name (a random UUID) and a name; its bell ID is `custom_<uuid>`. `CustomBell.fileNameOf` only accepts a well-formed UUID, so a stored ID can't point outside the bells folder. `CustomBellRules.check(size, duration)` returns too large (over 5 MB, checked first), unreadable (empty or no duration) or too long (over 60 s). `defaultName` drops the extension and underscores ("temple_gong.mp3" → "temple gong"), and `cleanName` puts a name on one line, trims it and cuts it to 40 characters. The list is stored as one string, a line per bell ("uuid<TAB>name"), under `custom_bells` in the `bells` DataStore; malformed and repeated lines are dropped when read.
+- `VibrationPattern.fullMillis` and `isCut`, so the editor can say how long a pattern lasts and when the 6-second cap cuts it.
+- `data/BellRepository`: `customBells`, `addCustomBell` (also selects it), `renameCustomBell`, and `removeCustomBell`, which switches to the Plum Village bell in the same edit if the deleted bell was in use.
+- `bells/CustomBellFiles`: `import(uri)` reads the display name and size, refuses a reported size over 5 MB before copying, copies to `filesDir/bells/<uuid>` (stopping a byte past the limit, since the reported size can be missing or wrong), then checks the copy with `MediaMetadataRetriever` (has audio, duration) and a test `MediaPlayer.prepare()`. A refused copy is deleted.
+- `bells/CustomBellLibrary`: what the bells screen calls. Saves, discards, renames and deletes run on `BellAlarms.scope`. Each import first deletes files no bell refers to (e.g. imported, then the app closed before naming), except imports still waiting for a name.
+- `BellPlayer` plays a custom bell from its file. A missing file or a load or playback failure falls back to the Plum Village bell and logs a warning.
+- **Bells screen:**
+  - Bell list: custom bells after the bundled ones, each with Edit (rename, or Delete with a confirmation that says when the Plum Village bell takes over) and Play. "Add your own…" opens the system file picker for `audio/*` ("Adding…" while it copies), then a "Name your bell" dialog with the suggested name. Cancel discards the copy; a tap outside doesn't. Refused files get "Can't use this sound" with the reason.
+  - A "Vibration" section when the bell vibrates and the phone has a vibrator: preset chips, plus a "Custom" chip once the pattern is edited. Choosing a preset or finishing an edit plays the pattern. Preview, and "Customise" opens sliders for pulses, pulse length and gap (rounded to 10 ms; the gap shows only with more than one pulse), strength (5% steps) and Steady / Swells (both only with amplitude control), Repeat (once, twice, 3 times), and "Lasts 1.2 seconds", noting when the end is cut off at 6 seconds.
+- Emulator results:
+
+| Case | Result |
+|---|---|
+| Valid MP3 | Copied, named ("temple gong" suggested), selected, previews on the alarm stream |
+| Background ring, screen off | The custom bell played |
+| Custom file missing | Warning logged, the Plum Village bell played |
+| 75 s MP3 / 5.5 MB WAV / random bytes as .mp3 | Refused as too long / too large / unreadable, nothing kept |
+| Cancel at naming | The copy was deleted |
+| Rename | Saved |
+| Delete the bell in use | File deleted, Plum Village selected |
+| Heartbeat preset | Played 1245 ms (1240 expected) |
+| Edit to 5 × 1470 ms, twice | "Custom" chip, cut-off note, played 6008 ms |
+| Choosing a preset after editing | "Custom" chip gone |
+
+- Not tested yet: a device without amplitude control (the strength and shape controls should hide), and the Pixel. Both are in the Phase 10 device tests.
 
 ### Phase 10: extras, testing and Play
 

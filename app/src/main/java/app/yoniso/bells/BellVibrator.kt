@@ -40,6 +40,12 @@ internal object BellVibrator {
         }
     }
 
+    /** False on phones without a vibrator, where the vibration settings are hidden. */
+    fun hasVibrator(context: Context): Boolean = vibratorOf(context).hasVibrator()
+
+    /** Whether the strength can be set. Without it, intensity and swell are hidden. */
+    fun hasAmplitudeControl(context: Context): Boolean = vibratorOf(context).hasAmplitudeControl()
+
     private fun vibratorOf(context: Context): Vibrator =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.getSystemService(VibratorManager::class.java).defaultVibrator

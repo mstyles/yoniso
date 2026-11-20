@@ -13,6 +13,8 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.yoniso.core.ActiveHours
 import app.yoniso.core.BellSettings
+import app.yoniso.core.CustomBell
+import app.yoniso.core.CustomBellRules
 import app.yoniso.core.VibrationPattern
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -55,6 +57,41 @@ class BellRepository(context: Context) {
         store.edit { if (at == null) it.remove(NEXT_RING_AT) else it[NEXT_RING_AT] = at.toEpochMilli() }
     }
 
+    /** The user's own bells, in the order they were added. Their files are kept by `CustomBellFiles`. */
+    val customBells: Flow<List<CustomBell>> = store.safeData()
+        .map { CustomBellRules.decode(it[CUSTOM_BELLS]) }
+        .distinctUntilChanged()
+
+    suspend fun customBells(): List<CustomBell> = CustomBellRules.decode(store.safeData().first()[CUSTOM_BELLS])
+
+    /** Adds [bell] and makes it the bell that rings. */
+    suspend fun addCustomBell(bell: CustomBell) {
+        store.edit { prefs ->
+            prefs[CUSTOM_BELLS] = CustomBellRules.encode(CustomBellRules.decode(prefs[CUSTOM_BELLS]) + bell)
+            prefs.write(prefs.toBellSettings().copy(bellId = bell.id))
+        }
+    }
+
+    suspend fun renameCustomBell(fileName: String, name: String) {
+        val clean = CustomBellRules.cleanName(name) ?: return
+        store.edit { prefs ->
+            val bells = CustomBellRules.decode(prefs[CUSTOM_BELLS])
+            prefs[CUSTOM_BELLS] = CustomBellRules.encode(bells.map { if (it.fileName == fileName) it.copy(name = clean) else it })
+        }
+    }
+
+    /** Removes the bell from the list. If it was the bell in use, the default bell takes its place. */
+    suspend fun removeCustomBell(fileName: String) {
+        store.edit { prefs ->
+            val bells = CustomBellRules.decode(prefs[CUSTOM_BELLS])
+            prefs[CUSTOM_BELLS] = CustomBellRules.encode(bells.filterNot { it.fileName == fileName })
+            val settings = prefs.toBellSettings()
+            if (CustomBell.fileNameOf(settings.bellId) == fileName) {
+                prefs.write(settings.copy(bellId = BellSettings.DEFAULT_BELL_ID))
+            }
+        }
+    }
+
     private companion object {
         val ENABLED = booleanPreferencesKey("enabled")
         val TIMING = stringPreferencesKey("timing")
@@ -77,6 +114,8 @@ class BellRepository(context: Context) {
         val DURING_MEDIA = stringPreferencesKey("during_media")
         val SNOOZED_UNTIL = longPreferencesKey("snoozed_until")
         val NEXT_RING_AT = longPreferencesKey("next_ring_at")
+        /** See [CustomBellRules.encode]. */
+        val CUSTOM_BELLS = stringPreferencesKey("custom_bells")
 
         fun Preferences.toBellSettings(): BellSettings {
             val d = BellSettings()

@@ -3,10 +3,12 @@ package app.yoniso.bells
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.net.Uri
 import android.util.Log
 import androidx.annotation.RawRes
 import app.yoniso.R
 import app.yoniso.core.BellSettings
+import app.yoniso.core.CustomBell
 
 /**
  * The bells that come with the app. Settings store [id], never the resource number, so the order and
@@ -64,11 +66,13 @@ enum class BundledBell(
  * phone's alarm volume, times the volume given to [play]. The caller decides whether it should ring
  * at all (silent mode and Do Not Disturb don't affect the alarm stream).
  *
- * An unknown bell, or one that fails to load or play, falls back to [BundledBell.DEFAULT].
+ * A custom bell plays its copied file. An unknown bell, a missing file, or one that fails to load
+ * or play falls back to [BundledBell.DEFAULT], and the error is logged.
  *
  * Must be used on the main thread.
  */
 internal class BellPlayer(private val context: Context) {
+    private val customFiles = CustomBellFiles(context)
     private var player: MediaPlayer? = null
     private var finishCallback: (() -> Unit)? = null
 
@@ -76,34 +80,58 @@ internal class BellPlayer(private val context: Context) {
     fun play(bellId: String, volume: Float = 1f, onFinished: () -> Unit) {
         stop()
         finishCallback = onFinished
-        val bell = BundledBell.of(bellId) ?: BundledBell.DEFAULT.also { Log.w(TAG, "Unknown bell $bellId") }
-        start(bell, volume.coerceIn(0f, 1f))
+        val v = volume.coerceIn(0f, 1f)
+        val bundled = BundledBell.of(bellId)
+        when {
+            bundled != null -> start(bundled, v)
+            CustomBell.fileNameOf(bellId) != null -> {
+                val file = customFiles.fileOf(bellId)
+                if (file != null) {
+                    start(bellId, v) { MediaPlayer.create(context, Uri.fromFile(file), null, ATTRIBUTES, 0) }
+                } else {
+                    Log.w(TAG, "Custom bell $bellId has no file")
+                    start(BundledBell.DEFAULT, v)
+                }
+            }
+            else -> {
+                Log.w(TAG, "Unknown bell $bellId")
+                start(BundledBell.DEFAULT, v)
+            }
+        }
     }
 
-    private fun start(bell: BundledBell, volume: Float) {
-        val created = MediaPlayer.create(context, bell.resId, ATTRIBUTES, 0)
+    private fun start(bell: BundledBell, volume: Float) =
+        start(bell.id, volume) { MediaPlayer.create(context, bell.resId, ATTRIBUTES, 0) }
+
+    private fun start(id: String, volume: Float, create: () -> MediaPlayer?) {
+        val created = try {
+            create()
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not load bell $id", e)
+            null
+        }
         if (created == null) {
-            Log.w(TAG, "Could not load bell ${bell.id}")
-            fallBackFrom(bell, volume)
+            Log.w(TAG, "Could not load bell $id")
+            fallBackFrom(id, volume)
             return
         }
         player = created
         created.setVolume(volume, volume)
         created.setOnCompletionListener { stop() }
         created.setOnErrorListener { mp, what, extra ->
-            Log.w(TAG, "Bell ${bell.id} playback error $what/$extra")
+            Log.w(TAG, "Bell $id playback error $what/$extra")
             if (player === mp) {
                 player = null
                 mp.release()
-                fallBackFrom(bell, volume)
+                fallBackFrom(id, volume)
             }
             true
         }
         created.start()
     }
 
-    private fun fallBackFrom(bell: BundledBell, volume: Float) {
-        if (bell != BundledBell.DEFAULT) start(BundledBell.DEFAULT, volume) else stop()
+    private fun fallBackFrom(id: String, volume: Float) {
+        if (id != BundledBell.DEFAULT.id) start(BundledBell.DEFAULT, volume) else stop()
     }
 
     /** Safe to call when nothing is playing. */

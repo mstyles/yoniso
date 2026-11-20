@@ -82,6 +82,17 @@ data class VibrationPattern(
         return Waveform(timings, amplitudes)
     }
 
+    /** How long the whole pattern would last without the [MAX_TOTAL_MILLIS] cap. */
+    val fullMillis: Long
+        get() {
+            val p = sanitized()
+            val once = p.pulses.toLong() * p.pulseMillis + (p.pulses - 1).toLong() * p.gapMillis
+            return p.repeats * once + (p.repeats - 1) * REPEAT_GAP_MILLIS
+        }
+
+    /** True if [toWaveform] cuts the pattern short. */
+    val isCut: Boolean get() = fullMillis > MAX_TOTAL_MILLIS
+
     companion object {
         val PULSES_RANGE = 1..6
         val PULSE_MILLIS_RANGE = 50..1500

@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -21,37 +19,32 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RangeSlider
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import app.yoniso.bells.BellPlayer
-import app.yoniso.bells.BundledBell
+import app.yoniso.bells.CustomBellLibrary
 import app.yoniso.core.BellOutput
 import app.yoniso.core.BellProblem
 import app.yoniso.core.BellProblems
 import app.yoniso.core.BellSettings
 import app.yoniso.core.BellTiming
+import app.yoniso.core.CustomBell
 import app.yoniso.core.DuringMedia
 import java.time.DayOfWeek
 import java.time.Instant
@@ -70,6 +63,7 @@ data class BellEnvironment(
     val accessibilityOn: Boolean = true,
     val doNotDisturb: Boolean = false,
     val silent: Boolean = false,
+    val hasVibrator: Boolean = true,
 )
 
 /** Random gaps offered on the slider, in minutes. Stored values up to 240 still work. */
@@ -77,12 +71,14 @@ private const val SLIDER_MIN = 5f
 private const val SLIDER_MAX = 120f
 private const val SLIDER_STEP = 5f
 
-/** The mindfulness bells: timing, hours, days, what a bell does, and which bell. */
+/** The mindfulness bells: timing, hours, days, what a bell does, which bell and which vibration. */
 @Composable
-fun BellsScreen(
+internal fun BellsScreen(
     settings: BellSettings,
     nextRing: Instant?,
     environment: BellEnvironment,
+    customBells: List<CustomBell>,
+    customBellLibrary: CustomBellLibrary,
     is24Hour: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     onChange: ((BellSettings) -> BellSettings) -> Unit,
@@ -187,7 +183,13 @@ fun BellsScreen(
 
             if (settings.output.sound) {
                 Section("Bell") {
-                    BellChooser(settings, onChange)
+                    BellChooser(settings, customBells, customBellLibrary, onChange)
+                }
+            }
+
+            if (settings.output.vibrate && environment.hasVibrator) {
+                Section("Vibration") {
+                    VibrationEditor(settings.vibration) { pattern -> onChange { it.copy(vibration = pattern) } }
                 }
             }
 
@@ -365,62 +367,6 @@ private fun DayPicker(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) 
             )
         }
     }
-}
-
-/** The bundled bells with a preview each, and the volume. */
-@Composable
-private fun BellChooser(settings: BellSettings, onChange: ((BellSettings) -> BellSettings) -> Unit) {
-    val context = LocalContext.current
-    val player = remember { BellPlayer(context) }
-    var playing by remember { mutableStateOf<String?>(null) }
-    DisposableEffect(player) { onDispose { player.stop() } }
-    var volume by remember(settings.volume) { mutableFloatStateOf(settings.volume) }
-
-    Column(Modifier.selectableGroup()) {
-        BundledBell.entries.forEach { bell ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .selectable(
-                        selected = settings.bellId == bell.id,
-                        role = Role.RadioButton,
-                        onClick = { onChange { it.copy(bellId = bell.id) } },
-                    ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(selected = settings.bellId == bell.id, onClick = null)
-                Text(bell.label, Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodyLarge)
-                TextButton(
-                    onClick = {
-                        if (playing == bell.id) {
-                            player.stop()
-                        } else {
-                            playing = bell.id
-                            // A bell cut short by another must not clear the new one.
-                            player.play(bell.id, volume) { if (playing == bell.id) playing = null }
-                        }
-                    },
-                    modifier = Modifier.semantics {
-                        contentDescription = if (playing == bell.id) "Stop ${bell.label}" else "Play ${bell.label}"
-                    },
-                ) { Text(if (playing == bell.id) "Stop" else "Play") }
-            }
-        }
-    }
-
-    Text("Volume", style = MaterialTheme.typography.bodyLarge)
-    Slider(
-        value = volume,
-        onValueChange = { volume = it },
-        valueRange = BellSettings.MIN_VOLUME..1f,
-        onValueChangeFinished = { onChange { it.copy(volume = volume) } },
-        modifier = Modifier.semantics { contentDescription = "Bell volume" },
-    )
-    Text(
-        "Bells follow your phone's alarm volume. This sets how loud they are within it.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 /** A time in the user's 12- or 24-hour style. */

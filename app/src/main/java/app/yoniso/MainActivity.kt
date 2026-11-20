@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.yoniso.bells.BellAlarms
+import app.yoniso.bells.BellVibrator
+import app.yoniso.bells.CustomBellLibrary
 import app.yoniso.core.BellSettings
 import app.yoniso.data.BellRepository
 import app.yoniso.data.InstalledApps
@@ -68,6 +70,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val bellRepository by lazy { BellRepository(this) }
+    private val customBellLibrary by lazy { CustomBellLibrary(this, bellRepository) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -86,6 +89,7 @@ class MainActivity : ComponentActivity() {
                 var showingBells by rememberSaveable { mutableStateOf(false) }
                 val bellSettings by bellRepository.settings.collectAsStateWithLifecycle(initialValue = BellSettings())
                 val nextRing by bellRepository.nextRingAt.collectAsStateWithLifecycle(initialValue = null)
+                val customBells by customBellLibrary.bells.collectAsStateWithLifecycle(initialValue = emptyList())
                 val is24Hour = DateFormat.is24HourFormat(this)
                 val scope = rememberCoroutineScope()
 
@@ -115,6 +119,8 @@ class MainActivity : ComponentActivity() {
                         settings = bellSettings,
                         nextRing = nextRing,
                         environment = bellEnvironment,
+                        customBells = customBells,
+                        customBellLibrary = customBellLibrary,
                         is24Hour = is24Hour,
                         onEnabledChange = ::setBellsEnabled,
                         onChange = ::updateBells,
@@ -174,6 +180,7 @@ class MainActivity : ComponentActivity() {
             doNotDisturb = filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
                 filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN,
             silent = audio.ringerMode == AudioManager.RINGER_MODE_SILENT,
+            hasVibrator = BellVibrator.hasVibrator(this),
         )
     }
 

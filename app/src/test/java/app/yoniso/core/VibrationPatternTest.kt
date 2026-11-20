@@ -87,4 +87,26 @@ class VibrationPatternTest {
         assertEquals(VibrationPreset.HEARTBEAT, VibrationPreset.of(VibrationPreset.HEARTBEAT.pattern))
         assertNull(VibrationPreset.of(VibrationPreset.HEARTBEAT.pattern.copy(pulses = 3)))
     }
+
+    @Test
+    fun `full length counts pulses, gaps and repeats`() {
+        // 2 × 100 + 200 = 400 per repeat; 3 repeats with two 600 ms gaps.
+        assertEquals(400L, pattern().fullMillis)
+        assertEquals(3 * 400L + 2 * VibrationPattern.REPEAT_GAP_MILLIS, pattern(repeats = 3).fullMillis)
+        assertEquals(false, pattern().isCut)
+    }
+
+    @Test
+    fun `full length matches the waveform when not cut`() {
+        VibrationPreset.entries.forEach {
+            assertEquals(it.name, it.pattern.fullMillis, it.pattern.toWaveform(true).totalMillis)
+        }
+    }
+
+    @Test
+    fun `a pattern over six seconds is cut`() {
+        val long = pattern(pulses = 6, pulse = 1500, gap = 1500, repeats = 3)
+        assertTrue(long.isCut)
+        assertEquals(VibrationPattern.MAX_TOTAL_MILLIS, long.toWaveform(true).totalMillis)
+    }
 }
