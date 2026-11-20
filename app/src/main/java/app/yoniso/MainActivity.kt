@@ -11,6 +11,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.service.quicksettings.TileService
 import android.text.format.DateFormat
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
@@ -89,7 +90,8 @@ class MainActivity : ComponentActivity() {
                 var choosingApps by rememberSaveable { mutableStateOf(false) }
                 var showingAbout by rememberSaveable { mutableStateOf(false) }
                 var showingPause by rememberSaveable { mutableStateOf(false) }
-                var showingBells by rememberSaveable { mutableStateOf(false) }
+                // A long press on the Quick Settings tile opens the bells.
+                var showingBells by rememberSaveable { mutableStateOf(intent?.action == TileService.ACTION_QS_TILE_PREFERENCES) }
                 val bellSettings by bellRepository.settings.collectAsStateWithLifecycle(initialValue = BellSettings())
                 val nextRing by bellRepository.nextRingAt.collectAsStateWithLifecycle(initialValue = null)
                 val customBells by customBellLibrary.bells.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -192,17 +194,11 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Saves a bell change and resets the alarm to match. Runs on past this screen, so it always completes. */
-    private fun updateBells(transform: (BellSettings) -> BellSettings) {
-        val app = applicationContext
-        BellAlarms.scope.launch {
-            bellRepository.update(transform)
-            BellAlarms.reschedule(app)
-        }
-    }
+    private fun updateBells(transform: (BellSettings) -> BellSettings) = BellAlarms.update(this, transform)
 
     /** Turning bells on asks for the notification permission, then for exact alarms, if missing. */
     private fun setBellsEnabled(enabled: Boolean) {
-        updateBells { it.copy(enabled = enabled) }
+        BellAlarms.setEnabled(this, enabled)
         if (!enabled) return
         val needsNotifications = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED

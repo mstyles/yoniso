@@ -11,7 +11,7 @@ This extends Yoniso beyond the PRD, whose principles still apply: mindfulness ov
 - [x] **Phase 7: ringing in the background.** 117 unit tests pass. Tested on the emulator (API 36), driven over adb. See "Phase 7: as built".
 - [x] **Phase 8: settings UI.** 122 unit tests pass. Tested on the emulator. Six CC0 bells added. See "Phase 8: as built".
 - [x] **Phase 9: custom bells and vibration.** 136 unit tests pass. Tested on the emulator. See "Phase 9: as built".
-- [ ] **Phase 10: extras, testing and Play.** Tile, snooze, device testing, disclosures.
+- [ ] **Phase 10: extras, testing and Play.** Tile, snooze, device testing, disclosures. Tile and snooze done (140 unit tests pass, tested on the emulator); device tests and Play still to do. See "Phase 10: as built".
 
 ## Decisions
 
@@ -278,6 +278,14 @@ The prototype (`app/yoniso/proto/`, branch `bells-prototype`, not merged) schedu
 - Quick Settings tile and snooze.
 - Device tests: a day of random bells on the Pixel with normal use; Doze overnight (nothing outside hours, nothing burst in the morning); reboot; time zone change; DST (emulator clock); silent, vibrate and DND; a call; music playing; a pause showing; accessibility service off; exact alarm revoked; a custom bell deleted from the source folder; a corrupt file; a vibration-only device without amplitude control (emulator).
 - README, PRIVACY.md, About screen credits, Play foreground-service declaration and video.
+
+### Phase 10: as built
+
+- **Snooze** (`core/BellSchedule`, unit tested): `SNOOZE_HOUR`, and `snoozeUntilTomorrow(now, hours, zone)`, which is midnight after today. Inside an active window, "today" is the day the window starts on, and a window that crosses midnight is snoozed to its end (at 23:00 or 01:00 in 22:00–02:00, until 02:00).
+- **Bells screen:** when bells are on, "Snooze 1 hour" and "Snooze until tomorrow" under the switch, or "End snooze" while snoozed. The status line reads "Snoozed. Next bell tomorrow around 8:26 AM."
+- `BellAlarms.update(context, transform)` saves, reschedules and refreshes the tile; `MainActivity` and the tile both use it. `BellAlarms.setEnabled` clears any snooze, so bells turned off and on again start afresh.
+- **Quick Settings tile** (`bells/BellTileService`, label "Bells", the bell feature icon, `TOGGLEABLE_TILE` so TalkBack reads it as a switch). A tap turns bells on or off. The subtitle (Android 10+) is "Off", "Snoozed", "Next 10:15" (set times) or "Around 10:09 AM" (random), or "On" when the next bell isn't today. It reads the stores while the panel is open. A long press opens the bells screen (`QS_TILE_PREFERENCES` on `MainActivity`). Turning bells on from the tile asks for no permissions; the bells screen shows what's missing.
+- Emulator: tile added with `cmd statusbar add-tile`, tap on and off, the subtitle following the next ring, a long press opening the bells screen, snooze for an hour (next bell moved past it), end snooze, snooze until tomorrow (next bell tomorrow at 8:26), "Snoozed" on the tile.
 
 ## Open questions
 

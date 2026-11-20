@@ -235,6 +235,33 @@ class BellScheduleTest {
         assertEquals(at("2026-11-11T09:15"), next(at("2026-11-11T09:00"), s))
     }
 
+    @Test
+    fun `snooze until tomorrow ends at midnight`() {
+        val until = BellSchedule.snoozeUntilTomorrow(at("2026-11-11T10:00"), hours("08:00", "21:00"), zone)
+        assertEquals(at("2026-11-12T00:00"), until)
+    }
+
+    @Test
+    fun `snooze until tomorrow before the window skips the whole of today`() {
+        val until = BellSchedule.snoozeUntilTomorrow(at("2026-11-11T06:00"), hours("08:00", "21:00"), zone)
+        assertEquals(at("2026-11-12T00:00"), until)
+    }
+
+    @Test
+    fun `snooze until tomorrow inside a window crossing midnight lasts to its end`() {
+        val late = hours("22:00", "02:00")
+        assertEquals(at("2026-11-12T02:00"), BellSchedule.snoozeUntilTomorrow(at("2026-11-11T23:00"), late, zone))
+        // After midnight, still in last night's window.
+        assertEquals(at("2026-11-12T02:00"), BellSchedule.snoozeUntilTomorrow(at("2026-11-12T01:00"), late, zone))
+    }
+
+    @Test
+    fun `snooze until tomorrow then rings at the next window`() {
+        val s = interval(15)
+        val snoozed = s.copy(snoozedUntil = BellSchedule.snoozeUntilTomorrow(at("2026-11-11T10:00"), s.activeHours, zone))
+        assertEquals(at("2026-11-12T08:00"), next(at("2026-11-11T10:00"), snoozed))
+    }
+
     // --- DST ---
 
     @Test

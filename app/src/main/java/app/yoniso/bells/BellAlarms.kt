@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.core.app.AlarmManagerCompat
 import app.yoniso.BuildConfig
 import app.yoniso.core.BellSchedule
+import app.yoniso.core.BellSettings
 import app.yoniso.data.BellRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +38,22 @@ internal object BellAlarms {
 
     /** Scheduling reads, then writes, the stored next ring; one at a time keeps them consistent. */
     private val lock = Mutex()
+
+    /**
+     * Saves a change to the bell settings and resets the alarm to match, on [scope], so it finishes
+     * even if the caller goes away. The Quick Settings tile is asked to show the change.
+     */
+    fun update(context: Context, transform: (BellSettings) -> BellSettings) {
+        val app = context.applicationContext
+        scope.launch {
+            BellRepository(app).update(transform)
+            reschedule(app)
+            BellTileService.refresh(app)
+        }
+    }
+
+    /** Turns bells on or off. Either way an old snooze is dropped, so bells start afresh next time. */
+    fun setEnabled(context: Context, enabled: Boolean) = update(context) { it.copy(enabled = enabled, snoozedUntil = null) }
 
     /**
      * Works out the first ring after [after] and sets its alarm, or cancels it if bells are off.

@@ -39,6 +39,21 @@ object BellSchedule {
         }
     }
 
+    /** How long "Snooze for 1 hour" lasts. */
+    val SNOOZE_HOUR: Duration = Duration.ofHours(1)
+
+    /**
+     * When "Snooze until tomorrow" ends, if snoozed at [now]: midnight after today, so no more bells
+     * ring today. Inside an active window, "today" is the day the window starts on, and a window that
+     * crosses midnight (e.g. 22:00–02:00) is snoozed to its end.
+     */
+    fun snoozeUntilTomorrow(now: Instant, hours: ActiveHours, zone: ZoneId): Instant {
+        val window = windowsAround(now, hours, zone).firstOrNull { now >= it.startInstant && now < it.endInstant }
+        val today = window?.start?.toLocalDate() ?: now.atZone(zone).toLocalDate()
+        val midnight = today.plusDays(1).atStartOfDay(zone).toInstant()
+        return maxOf(midnight, window?.endInstant ?: midnight)
+    }
+
     /** Whether [at] falls inside an active window. */
     fun isActive(at: Instant, hours: ActiveHours, zone: ZoneId): Boolean =
         windowsAround(at, hours, zone).any { at in it.startInstant..it.endInstant }

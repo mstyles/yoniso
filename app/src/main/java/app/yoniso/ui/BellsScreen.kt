@@ -42,6 +42,7 @@ import app.yoniso.bells.CustomBellLibrary
 import app.yoniso.core.BellOutput
 import app.yoniso.core.BellProblem
 import app.yoniso.core.BellProblems
+import app.yoniso.core.BellSchedule
 import app.yoniso.core.BellSettings
 import app.yoniso.core.BellTiming
 import app.yoniso.core.CustomBell
@@ -114,6 +115,8 @@ internal fun BellsScreen(
                 Spacer(Modifier.padding(8.dp))
                 Switch(checked = settings.enabled, onCheckedChange = null)
             }
+
+            if (settings.enabled) Snooze(settings, onChange)
 
             val problems = BellProblems.of(
                 settings,
@@ -217,10 +220,32 @@ internal fun BellsScreen(
     }
 }
 
+/** Snooze buttons, or a way to end the snooze. */
+@Composable
+private fun Snooze(settings: BellSettings, onChange: ((BellSettings) -> BellSettings) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (isSnoozed(settings)) {
+            OutlinedButton(onClick = { onChange { it.copy(snoozedUntil = null) } }) { Text("End snooze") }
+        } else {
+            OutlinedButton(onClick = { onChange { it.copy(snoozedUntil = Instant.now() + BellSchedule.SNOOZE_HOUR) } }) {
+                Text("Snooze 1 hour")
+            }
+            OutlinedButton(onClick = {
+                onChange { it.copy(snoozedUntil = BellSchedule.snoozeUntilTomorrow(Instant.now(), it.activeHours, ZoneId.systemDefault())) }
+            }) {
+                Text("Snooze until tomorrow")
+            }
+        }
+    }
+}
+
+private fun isSnoozed(settings: BellSettings): Boolean = settings.snoozedUntil?.let { it > Instant.now() } == true
+
 /** The line under the switch: off, or when the next bell is due. */
 private fun statusLine(settings: BellSettings, nextRing: Instant?, is24Hour: Boolean): String {
     if (!settings.enabled) return "Off. No bells ring."
-    nextRing ?: return "On. No bell is due."
+    val state = if (isSnoozed(settings)) "Snoozed" else "On"
+    nextRing ?: return "$state. No bell is due."
     val zone = ZoneId.systemDefault()
     val at = nextRing.atZone(zone)
     val today = LocalDate.now(zone)
@@ -233,7 +258,7 @@ private fun statusLine(settings: BellSettings, nextRing: Instant?, is24Hour: Boo
     // Set times ring on the minute; random ones can be a little late without exact alarms, and
     // "around" keeps a little of the surprise.
     val around = if (settings.timing == BellTiming.RANDOM) "around " else "at "
-    return "On. Next bell $day$around$time."
+    return "$state. Next bell $day$around$time."
 }
 
 /** Problems that stop bells ringing as set up. The exact-alarm ones come with a way to fix them. */

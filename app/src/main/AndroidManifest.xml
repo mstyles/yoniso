@@ -53,6 +53,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- A long press on the Bells tile opens the bells screen. -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
         </activity>
 
         <service
@@ -90,5 +94,20 @@
             android:name=".bells.BellService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback|shortService" />
+
+        <!-- The Bells Quick Settings tile. -->
+        <service
+            android:name=".bells.BellTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_bell_feature"
+            android:label="@string/bell_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
     </application>
 </manifest>

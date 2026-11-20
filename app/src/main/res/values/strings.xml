@@ -5,4 +5,5 @@
     <string name="bell_channel_description">Shown quietly while a mindfulness bell rings.</string>
     <string name="bell_notification_title">Mindfulness bell</string>
     <string name="bell_notification_stop">Stop</string>
+    <string name="bell_tile_label">Bells</string>
 </resources>
