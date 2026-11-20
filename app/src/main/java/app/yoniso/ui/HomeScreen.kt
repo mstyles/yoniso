@@ -32,6 +32,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import app.yoniso.R
 
 /** The published privacy policy (PRIVACY.md in the repository). Opened in the browser. */
@@ -56,39 +63,79 @@ fun HomeScreen(
     onAbout: () -> Unit,
 ) {
     Surface(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
-            Text(
-                "Yoniso",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.semantics { heading() },
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                FeatureTile("Pause before apps", R.drawable.ic_pause_feature, pauseState, onPause, Modifier.weight(1f))
-                FeatureTile("Mindfulness bell", R.drawable.ic_bell_feature, bellsState, onBells, Modifier.weight(1f))
-            }
-            val uriHandler = LocalUriHandler.current
-            Row {
-                TextButton(onClick = onAbout) { Text("About") }
-                TextButton(
-                    onClick = {
-                        // Throws if no browser is installed; there is nothing more useful to do then.
-                        runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) }
-                    },
-                ) { Text("Privacy policy") }
+        BoxWithConstraints(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
+            // At least the screen's height, so the tiles sit in the middle and the links at the
+            // bottom; it scrolls when it doesn't fit (landscape, large text).
+            Column(
+                Modifier
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight)
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // An empty top, so SpaceBetween centres the middle group between it and the links.
+                Spacer(Modifier)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(40.dp),
+                    modifier = Modifier.padding(vertical = 24.dp),
+                ) {
+                    Wordmark()
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        FeatureTile("Pause before apps", R.drawable.ic_pause_feature, pauseState, onPause, Modifier.weight(1f))
+                        FeatureTile("Mindfulness bell", R.drawable.ic_bell_feature, bellsState, onBells, Modifier.weight(1f))
+                    }
+                }
+                val uriHandler = LocalUriHandler.current
+                Row(horizontalArrangement = Arrangement.Center) {
+                    TextButton(onClick = onAbout) { Text("About") }
+                    TextButton(
+                        onClick = {
+                            // Throws if no browser is installed; there is nothing more useful to do then.
+                            runCatching { uriHandler.openUri(PRIVACY_POLICY_URL) }
+                        },
+                    ) { Text("Privacy policy") }
+                }
             }
         }
     }
 }
 
 /**
+ * "Yoniso" in Cormorant Garamond, with "wise attention" (what the name means) under it in italic.
+ * The font files are cut down to just these letters, so use them for nothing else.
+ */
+@Composable
+private fun Wordmark() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.semantics(mergeDescendants = true) { heading() },
+    ) {
+        Text(
+            "Yoniso",
+            fontFamily = WordmarkFont,
+            fontSize = 64.sp,
+            letterSpacing = 2.sp,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            "wise attention",
+            fontFamily = WordmarkItalicFont,
+            fontStyle = FontStyle.Italic,
+            fontSize = 22.sp,
+            letterSpacing = 1.sp,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+private val WordmarkFont = FontFamily(Font(R.font.yoniso_wordmark))
+private val WordmarkItalicFont = FontFamily(Font(R.font.yoniso_wordmark_italic, style = FontStyle.Italic))
+
+/**
  * A square tile with the feature's icon: filled when it's on, outlined and muted when it's off, with
- * a red dot when it needs attention. Tapping opens its settings. TalkBack reads e.g. "Pause before
+ * a soft clay dot when it needs attention. Tapping opens its settings. TalkBack reads e.g. "Pause before
  * apps, On".
  */
 @Composable
@@ -118,7 +165,7 @@ private fun FeatureTile(
                 Surface(
                     Modifier.align(Alignment.TopEnd).padding(16.dp).size(14.dp),
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.error,
+                    color = MaterialTheme.colorScheme.tertiary,
                 ) {}
             }
         }

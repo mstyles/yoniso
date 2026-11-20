@@ -83,6 +83,10 @@ Sources: Play Console Help on [AccessibilityService API use](https://support.goo
 | Harmony bell | `bell_harmony_bell.mp3` | [400605](https://freesound.org/people/newagesoup/sounds/400605/) | newagesoup |
 | Temple bell | `bell_temple_bell.mp3` | [668647](https://freesound.org/people/tec_studio/sounds/668647/) | tec_studio |
 
+## Font
+
+The "Yoniso" wordmark on the home screen is set in [Cormorant Garamond](https://github.com/CatharsisFonts/Cormorant) (Copyright 2015 the Cormorant Project Authors), under the [SIL Open Font License 1.1](licenses/Cormorant-OFL.txt). `res/font/yoniso_wordmark*.ttf` are cut down from Google Fonts' variable files to weight 400 and only the letters of "Yoniso" and "wise attention" (with fonttools: `varLib.instancer`, then `pyftsubset --text=... --name-IDs='*'`, which keeps the licence in the font), about 3 KB each. Use them for nothing else, or cut them again with the letters needed.
+
 ## License
 
 [MIT](LICENSE)

@@ -15,6 +15,8 @@ private val LightColors = lightColorScheme(
     onPrimaryContainer = Color(0xFF243228),
     secondaryContainer = Color(0xFFC9D3CB),
     onSecondaryContainer = Color(0xFF243228),
+    // A soft clay, for gentle attention (the home tile's dot) rather than the error red.
+    tertiary = Color(0xFFB8714E),
     tertiaryContainer = Color(0xFFF1E3CC),
     onTertiaryContainer = Color(0xFF3D3020),
     background = Color(0xFFF7F5F1),
@@ -32,6 +34,7 @@ private val DarkColors = darkColorScheme(
     onPrimaryContainer = Color(0xFFD3E2D6),
     secondaryContainer = Color(0xFF3D4F41),
     onSecondaryContainer = Color(0xFFD3E2D6),
+    tertiary = Color(0xFFE2A684),
     tertiaryContainer = Color(0xFF4F4330),
     onTertiaryContainer = Color(0xFFF1E3CC),
     background = Color(0xFF1C1C1A),

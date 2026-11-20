@@ -81,10 +81,26 @@ fun AboutScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                AboutSection("The lettering") {
+                    Paragraph(
+                        "\"Yoniso\" on the home screen is set in Cormorant Garamond by Christian Thalmann " +
+                            "and the Cormorant Project Authors, under the SIL Open Font License 1.1.",
+                    )
+                    val uriHandler = LocalUriHandler.current
+                    TextButton(
+                        onClick = { runCatching { uriHandler.openUri(FONT_LICENSE_URL) } },
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        Text("Read the font licence", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
             }
         }
     }
 }
+
+/** The font's licence, as published in the repository. */
+private const val FONT_LICENSE_URL = "https://github.com/mstyles/yoniso/blob/main/licenses/Cormorant-OFL.txt"
 
 @Composable
 private fun AboutSection(title: String, content: @Composable () -> Unit) {
