@@ -43,14 +43,14 @@ import app.yoniso.ui.AppListScreen
 import app.yoniso.ui.BellEnvironment
 import app.yoniso.ui.BellsScreen
 import app.yoniso.ui.FeatureState
-import app.yoniso.ui.OnboardingScreen
 import app.yoniso.ui.HomeScreen
+import app.yoniso.ui.IntroScreen
 import app.yoniso.ui.PauseScreen
 import app.yoniso.ui.YonisoTheme
 import kotlinx.coroutines.launch
 
 /**
- * Hosts the screens: first-launch onboarding, home (a tile per feature), the pause settings and its
+ * Hosts the screens: the first-launch intro, home (a tile per feature), the pause settings and its
  * app list, the bells and About.
  * Settings are read from and written straight to [SettingsRepository] and [BellRepository]; the
  * accessibility service observes the same stores. Every bell change also resets the bell's alarm.
@@ -101,12 +101,8 @@ class MainActivity : ComponentActivity() {
                     // Still loading: a blank surface for a few milliseconds.
                     onboardingDone == null || loadedSettings == null -> Surface(Modifier.fillMaxSize()) {}
 
-                    onboardingDone == false -> OnboardingScreen(
-                        onOpenAccessibilitySettings = {
-                            scope.launch { repository.setOnboardingDone() }
-                            openAccessibilitySettings()
-                        },
-                        onNotNow = { scope.launch { repository.setOnboardingDone() } },
+                    onboardingDone == false -> IntroScreen(
+                        onGetStarted = { scope.launch { repository.setOnboardingDone() } },
                     )
 
                     choosingApps -> AppListScreen(
