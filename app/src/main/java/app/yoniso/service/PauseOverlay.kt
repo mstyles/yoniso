@@ -26,7 +26,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -167,8 +167,9 @@ internal fun PauseOverlay(
                 .heightIn(min = maxHeight)
                 .fillMaxWidth()
                 .graphicsLayer { alpha = contentAlpha.value }
-                // The background covers the camera cutout in landscape; the content stays clear of it.
-                .windowInsetsPadding(WindowInsets.displayCutout)
+                // The background covers the whole screen; the content stays clear of the
+                // status bar, navigation bar and camera cutout.
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(32.dp)
             if (sideBySide) {
                 Row(

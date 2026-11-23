@@ -1,7 +1,6 @@
 package app.yoniso.service
 
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -9,13 +8,10 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
-import androidx.annotation.RequiresApi
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
@@ -80,8 +76,6 @@ internal class OverlayController(private val context: Context) {
             setViewTreeSavedStateRegistryOwner(owner)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
-                val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                LaunchedEffect(landscape) { coverSideCutout(this@apply, landscape) }
                 PauseOverlay(
                     showChoice = showChoice,
                     bellRinging = bellRinging,
@@ -106,7 +100,11 @@ internal class OverlayController(private val context: Context) {
         ).apply {
             // Shown in the window list that accessibility services such as TalkBack read out.
             title = "Yoniso pause"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) layoutInDisplayCutoutMode = cutoutMode(landscape = false)
+            // Extends into the camera cutout, so the pause covers the whole screen, status bar
+            // included, in either orientation. The content is padded clear of it.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
         }
 
         return try {
@@ -122,34 +120,6 @@ internal class OverlayController(private val context: Context) {
             false
         }
     }
-
-    /**
-     * In landscape the camera cutout is on a side with no system bar, and by default the
-     * window stops short of it, leaving a strip of the app showing, so the window extends
-     * into cutouts on the short edges then. Not in portrait: there the cutout is in the status
-     * bar, and extending into it would cover the status bar. Called again when the screen
-     * rotates, e.g. when a landscape game finishes starting under the pause.
-     */
-    private fun coverSideCutout(view: ComposeView, landscape: Boolean) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
-        val params = view.layoutParams as? WindowManager.LayoutParams ?: return
-        val mode = cutoutMode(landscape)
-        if (params.layoutInDisplayCutoutMode == mode || !view.isAttachedToWindow) return
-        params.layoutInDisplayCutoutMode = mode
-        try {
-            windowManager.updateViewLayout(view, params)
-        } catch (e: IllegalArgumentException) {
-            Log.w(TAG, "Could not update the overlay's cutout mode", e)
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.P)
-    private fun cutoutMode(landscape: Boolean): Int =
-        if (landscape) {
-            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-        } else {
-            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
-        }
 
     /** Switches the showing overlay from the pause to the choice. */
     fun showChoice() {
