@@ -1,8 +1,32 @@
 # Yoniso
 
-An Android app that adds a short breathing pause before selected apps open, and rings a mindfulness bell through the day. See [prd.md](prd.md).
+![Yoniso: wise attention](docs/images/feature-graphic.png)
 
-**Status:** Not yet published. The pause is feature-complete ([docs/plan.md](docs/plan.md)). The mindfulness bell is in its last phase: device testing and Play ([docs/bells-plan.md](docs/bells-plan.md)).
+An Android app for wise attention (*yoniso manasikāra*). It adds a short breathing pause before the apps you choose, and rings a mindfulness bell through the day. Everything happens on the phone: Yoniso has no internet access and collects nothing. See [prd.md](prd.md) for the product description.
+
+**Status:** version 0.2 is in closed testing on Google Play. Both features are built ([docs/plan.md](docs/plan.md), [docs/bells-plan.md](docs/bells-plan.md)).
+
+**Walkthrough:** [a two-minute video](https://www.youtube.com/shorts/wgY-dZ_5uK8) of the first launch, the accessibility disclosure, turning access on, and pauses with Continue and Exit. It was recorded for Play's accessibility declaration.
+
+## Features
+
+**Pause before apps.** When an app you choose opens, Yoniso covers it with a breathing circle for 5, 10 or 15 seconds. Then you choose: continue mindfully, listen to a bell, or exit to the home screen. A cooldown stops the same app pausing again straight away.
+
+<p>
+  <img src="docs/images/1-pause-breathe.png" width="200" alt="The pause: a breathing circle with &quot;Take a breath. Notice this moment.&quot;">
+  <img src="docs/images/2-pause-choice.png" width="200" alt="After the pause: Continue mindfully, Listen to a bell, Exit">
+  <img src="docs/images/4-pause-settings.png" width="200" alt="Pause settings: apps, pause length and cooldown">
+</p>
+
+**Mindfulness bell.** A bell rings at set times or at random within the hours and days you choose, as a reminder to stop and breathe. Pick one of seven bells or add your own, and choose whether it rings, vibrates or both. Snooze it for an hour or until tomorrow, and turn it on or off from a Quick Settings tile.
+
+<p>
+  <img src="docs/images/3-home.png" width="200" alt="Home screen with the pause and bell tiles">
+  <img src="docs/images/5-bells.png" width="200" alt="Bell settings: snooze, timing and hours">
+  <img src="docs/images/6-bells-sound.png" width="200" alt="Bell settings: days, ring or vibrate, and the choice of bell">
+</p>
+
+The pause needs Android's accessibility access, used only to see which app comes to the front. Yoniso never reads what is on the screen. See the [privacy policy](PRIVACY.md).
 
 ## Build and run
 
@@ -51,21 +75,31 @@ adb logcat -s Yoniso
 - **Battery managers and bells:** some manufacturers delay or drop alarms for apps in the background. Exempting Yoniso from battery optimisation helps.
 - **Another pause app:** Apps that also put up an overlay when an app opens (e.g. one sec) may stack their overlay with Yoniso's if both watch the same app.
 
-## Before publishing on Google Play
+## Google Play
 
 Yoniso is not an accessibility tool, so it must not set `isAccessibilityTool`. Play's AccessibilityService policy then requires:
 
-- **In-app prominent disclosure and consent (done):** shown on the "Pause before apps" page while access is off. The first-launch intro only explains the two features and doesn't ask for access, so the disclosure always comes right before the request. It says what is accessed, how it is used, and that nothing is shared, then asks for an explicit "Agree and open settings". "Not now" declines. Leaving the screen is never treated as consent. The service's description string does not count as the disclosure.
-- **Play Console Accessibility API declaration (to do in the Console):** the reason for use is app functionality. Answer **No** to collecting or sharing personal and sensitive data through accessibility. The declaration asks for a video. A captioned one (recorded 2026-11-20 on the emulator) shows the first-launch intro, the disclosure, declining (the disclosure reappears), agreeing and turning the service on, and pauses with Continue and Exit. It is an unlisted YouTube video, not in the repo. Re-record it if the disclosure or the way access is requested changes.
-- **Privacy policy (done):** [PRIVACY.md](PRIVACY.md), published at https://github.com/mstyles/yoniso/blob/main/PRIVACY.md and linked from the bottom of the home screen. Put the same URL in the Play Console.
-- **Data safety form (to do in the Console):** Play counts data as collected only if it is "transmitted off a user's device", and Yoniso processes everything on the device.
+- **In-app prominent disclosure and consent:** shown on the "Pause before apps" page while access is off. The first-launch intro only explains the two features and doesn't ask for access, so the disclosure always comes right before the request. It says what is accessed, how it is used, and that nothing is shared, then asks for an explicit "Agree and open settings". "Not now" declines. Leaving the screen is never treated as consent. The service's description string does not count as the disclosure.
+- **Accessibility API declaration (Console):** the reason for use is app functionality. Answer **No** to collecting or sharing personal and sensitive data through accessibility. The declaration's video is the [walkthrough](https://www.youtube.com/shorts/wgY-dZ_5uK8) (unlisted, recorded 2026-11-20 on the emulator, captioned). Re-record it if the disclosure or the way access is requested changes.
+- **Privacy policy:** [PRIVACY.md](PRIVACY.md), published at https://github.com/mstyles/yoniso/blob/main/PRIVACY.md and linked from the bottom of the home screen. The same URL is in the Play Console.
+- **Data safety form (Console):** Play counts data as collected only if it is "transmitted off a user's device", and Yoniso processes everything on the device.
   - "Does your app collect or share any of the required user data types?" **No.** The encryption and deletion questions are then skipped.
-  - Data types: none, not even "Installed apps" or "App interactions" (on-device only). The listing should then show "No data collected" and "No data shared with third parties".
+  - Data types: none, not even "Installed apps" or "App interactions" (on-device only). The listing then shows "No data collected" and "No data shared with third parties".
   - Target audience: not children, so the Families policy doesn't apply.
   - Revisit this form, the declaration and PRIVACY.md if Yoniso ever gains the `INTERNET` permission, an analytics or crash-reporting SDK, or a cloud backup of its data.
-- **Foreground service declaration (to do in the Console):** `BellService` uses `shortService` on Android 14+ and no type before that. It deliberately doesn't use `mediaPlayback`, whose declaration video must show playback the user starts, which an alarm-started bell isn't. Play's pages don't say whether `shortService` needs a declaration; answer whatever the Console asks at upload. See "Phase 10: as built" in [docs/bells-plan.md](docs/bells-plan.md).
+- **Foreground service:** `BellService` uses `shortService` on Android 14+ and no type before that. It deliberately doesn't use `mediaPlayback`, whose declaration video must show playback the user starts, which an alarm-started bell isn't. See "Phase 10: as built" in [docs/bells-plan.md](docs/bells-plan.md).
 - **Exact alarms:** Yoniso uses `SCHEDULE_EXACT_ALARM`, which the user grants, and not `USE_EXACT_ALARM`, which Play restricts to alarm-clock and calendar apps.
-- **targetSdk (done):** 37 (Android 17). Play currently requires 36 or higher. Android 17's background-audio hardening blocks audio focus and volume changes from background apps. Tested on a Pixel 8 (Android 17) targeting 37: while the pause shows, focus is granted and media is muted, then both are released, with no `AudioHardening` entries for Yoniso. Watch for this if the overlay or audio code changes.
+- **targetSdk:** 37 (Android 17). Play currently requires 36 or higher. Android 17's background-audio hardening blocks audio focus and volume changes from background apps. Tested on a Pixel 8 (Android 17) targeting 37: while the pause shows, focus is granted and media is muted, then both are released, with no `AudioHardening` entries for Yoniso. Watch for this if the overlay or audio code changes.
+
+### Releasing
+
+1. Raise `versionCode` (and `versionName`) in `app/build.gradle.kts`. Play rejects a bundle whose version code it has seen.
+2. `./gradlew :app:bundleRelease`. It is signed with the upload key when `YONISO_UPLOAD_STORE_FILE`, `YONISO_UPLOAD_STORE_PASSWORD`, `YONISO_UPLOAD_KEY_ALIAS` and `YONISO_UPLOAD_KEY_PASSWORD` are set in `~/.gradle/gradle.properties` (the key stays out of the repo). Without them the bundle is unsigned.
+3. Upload `app/build/outputs/bundle/release/app-release.aab` to a new release on the track in the Play Console.
+
+### Closed testing
+
+Testers are a Google Group added on the closed testing track's **Testers** tab. To join, a tester accepts the group invitation, then opens the opt-in link (https://play.google.com/apps/testing/app.yoniso) with the same Google account they use for the Play Store and taps **Become a tester**, then installs Yoniso from Play. A new personal developer account needs at least 12 testers opted in for 14 days in a row before it can apply for production access; the Console's dashboard shows the progress.
 
 Sources: Play Console Help on [AccessibilityService API use](https://support.google.com/googleplay/android-developer/answer/10964491), [best practices for prominent disclosure](https://support.google.com/googleplay/android-developer/answer/11150561), the [User Data policy](https://support.google.com/googleplay/android-developer/answer/10144311), and [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469).
 
